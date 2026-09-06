@@ -1,12 +1,15 @@
 {
-  "description": "",
-  "devDependencies": {
-    "vitepress": "^1.6.4",
-    "vitepress-plugin-auto-sidebar": "^1.4.0"
-  },
+  "name": "ai-learning-blog",
+  "version": "0.1.0",
+  "private": true,
+  "description": "面向人工智能、大模型与智能体求职的学习笔记",
+  "type": "module",
   "scripts": {
     "docs:dev": "vitepress dev",
     "docs:build": "vitepress build",
     "docs:preview": "vitepress preview"
+  },
+  "devDependencies": {
+    "vitepress": "^1.6.4"
   }
 }

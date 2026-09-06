@@ -1,39 +1,59 @@
 import { defineConfig } from 'vitepress'
-import { getSidebar } from 'vitepress-plugin-auto-sidebar'
+import { getSidebar } from './sidebar.mjs'
+
+const configuredBase = process.env.BASE_PATH || '/'
+const base = /^[A-Za-z]:[\\/]/.test(configuredBase) ? '/' : configuredBase
+const normalizedBase =
+  base === '/' ? '/' : `/${base.replace(/^\/+|\/+$/g, '')}/`
 
 export default defineConfig({
-  title: 'AI-Learning-Blog',
-  description: 'AI Infra & Agent 求职学习笔记',
-
-  // Markdown 文件放在 docs 目录
+  lang: 'zh-CN',
+  title: 'AI Learning Blog',
+  description: '面向人工智能、大模型与智能体求职的学习笔记',
+  base: normalizedBase,
   srcDir: 'docs',
+  lastUpdated: true,
 
   themeConfig: {
+    siteTitle: 'AI Learning Blog',
     nav: [
       { text: '首页', link: '/' },
-      { text: 'Agent开发', link: '/agent/langgraph-basic' },
-      { text: 'AI Infra', link: '/ai-infra/' }
+      { text: '学习路线', link: '/roadmap' },
+      { text: '大模型', link: '/llm/' },
+      { text: '智能体', link: '/agent/' },
+      { text: '强化学习', link: '/rf/' },
+      { text: 'GitHub', link: 'https://github.com/fish-wc/ai-learning-blog' }
     ],
 
-    sidebar: getSidebar({
-      // 注意：Windows 下这里建议写 docs，不要写 /docs
-      contentRoot: 'docs',
+    sidebar: getSidebar(),
+    outline: {
+      level: [2, 3],
+      label: '本页目录'
+    },
+    search: {
+      provider: 'local'
+    },
+    socialLinks: [
+      { icon: 'github', link: 'https://github.com/fish-wc/ai-learning-blog' }
+    ],
+    editLink: {
+      pattern: 'https://github.com/fish-wc/ai-learning-blog/edit/main/docs/:path',
+      text: '在 GitHub 上编辑此页'
+    },
+    docFooter: {
+      prev: '上一页',
+      next: '下一页'
+    },
+    lastUpdated: {
+      text: '最后更新于'
+    },
+    footer: {
+      message: '持续学习，持续输出。',
+      copyright: 'Copyright © 2026 AI Learning Blog'
+    }
+  },
 
-      // 只扫描这两个目录，因此根目录 docs/index.md 不会进入 sidebar
-      contentDirs: [
-        { path: 'agent', title: 'Agent开发' },
-        { path: 'ai-infra', title: 'AI Infra' }
-      ],
-
-      // 目录是否可以折叠
-      collapsible: true,
-
-      // 默认是否折叠
-      collapsed: false,
-
-      // true = 优先使用 markdown frontmatter 中的 title
-      // false = 使用文件名
-      useFrontmatter: true
-    })
+  markdown: {
+    lineNumbers: true
   }
 })
