@@ -1,0 +1,18 @@
+.math.math-inline {
+  white-space: nowrap;
+}
+
+mjx-container {
+  overflow-x: auto;
+  overflow-y: hidden;
+  max-width: 100%;
+  padding: 0.15rem 0;
+}
+
+mjx-container[display='true'] {
+  margin: 1.25rem 0 !important;
+}
+
+.vp-doc mjx-container {
+  color: var(--vp-c-text-1);
+}

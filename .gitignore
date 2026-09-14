@@ -1,8 +1,10 @@
 node_modules/
 
 # VitePress generated files
+# .vitepress/*
 .vitepress/cache/
 .vitepress/dist/
+
 
 # Local and editor files
 .DS_Store

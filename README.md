@@ -101,7 +101,19 @@ order: 2
 ---
 ```
 
-> VitePress 会自动渲染 Markdown、代码高亮、表格、数学公式（需额外配置）和自定义容器。先保证内容完整，再逐步补充格式。
+VitePress 会自动渲染 Markdown、代码高亮、表格、数学公式和自定义容器。数学公式由 `markdown-it-mathjax3` 统一处理，推荐使用标准 LaTeX 写法：
+
+```markdown
+行内公式：$J(\\theta)=\\mathbb{E}[R]$
+
+块级公式：
+
+$$
+J(\\theta)=\\mathbb{E}_{\\tau\\sim p_\\theta}[R(\\tau)]
+$$
+```
+
+不要使用 `[` 和 `]` 包裹公式（例如 `[ ... ]`），这种写法会被当作普通 Markdown 文本。frontmatter 中的 `math: true` 可以作为笔记标记，但不会单独启用渲染插件；插件已经在全站配置中启用。
 
 ## GitHub Pages 部署
 
