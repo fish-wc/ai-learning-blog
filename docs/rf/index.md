@@ -11,6 +11,7 @@ order: 59
 ## 笔记列表
 
 - [PPO 学习笔记（一）：Policy Gradient 到底在优化什么？](./ppo)
+- [PPO 学习笔记（二）：Advantage 与 GAE —— 一场 Bias 和 Variance 之间的博弈](./advantage)
 - [强化学习基础测试](./rf-learn)
 
 > `docs/rf/` 是源码目录，网页链接不需要写 `docs/`，也不需要写 `.md` 后缀。

@@ -33,9 +33,7 @@ math: true
 
 # 1. PPO究竟想优化什么？
 
-强化学习和监督学习有一个非常重要的区别。
-
-监督学习通常有一个明确的 loss：
+强化学习和监督学习有一个非常重要的区别。监督学习通常有一个明确的 loss：
 
 $$
 L(\theta)
@@ -59,11 +57,7 @@ prediction
 cross entropy loss
 ```
 
-整个计算图通常都是可微的，于是我们可以一路反向传播。
-
-但是强化学习不是这样。
-
-Agent 做的是：
+整个计算图通常都是可微的，于是我们可以一路反向传播。但是强化学习不是这样，Agent 做的是：
 
 ```text
 state
@@ -94,11 +88,9 @@ $$
 \frac{\partial R}{\partial \theta}
 $$
 
-然后从 reward 一路反向传播到 policy。
+然后从 reward 一路反向传播到 policy。Policy Gradient 的关键思想就是：
 
-Policy Gradient 的关键思想就是：
-
-> **我根本不需要对 Reward 求导。**
+>**我根本不需要对 Reward 求导。** 
 
 我们真正要优化的是：
 
@@ -120,11 +112,11 @@ $$
 
 > Policy Gradient 优化的不是某一次 reward，而是**当前 Policy 所产生的 trajectory 的期望回报**。
 
-这句话非常重要。
 
 ---
 
 # 2. 什么是 trajectory？
+简述：trajectory是状态和动作的记录。
 
 一条 trajectory 可以写成：
 
@@ -173,6 +165,8 @@ $$
 
 # 3. 一个容易混淆的记号：$\pi_\theta(\tau)$
 
+简述：$\pi_\theta(\tau)$，即$p_\theta(\tau)$，即一条轨迹$\tau$发生的概率，即在当前状态$a_t$下进入状态$s_t$的概率 乘以 在$a_t$和$s_t$下进入状态$s_{t+1}$的概率。
+
 很多教程会写：
 
 $$
@@ -191,9 +185,7 @@ $$
 p_\theta(\tau)
 $$
 
-因为一条 trajectory 出现的概率并不完全由 Policy 决定。
-
-它还包含 environment transition。
+因为一条 trajectory 出现的概率并不完全由 Policy 决定。它还包含 environment transition。
 
 对于一个 MDP（马尔科夫决策过程，这里需要具备马尔科夫性的相关知识才能看懂）：
 
@@ -218,9 +210,7 @@ $$
 \pi_\theta(a_t|s_t)
 $$
 
-是 Agent 的策略（比如，模型对下一枚 token 的概率分布），
-
-而：
+是 Agent 的策略（比如，模型对下一枚 token 的概率分布），而：
 
 $$
 P(s_{t+1}|s_t,a_t)
@@ -231,6 +221,7 @@ $$
 这三个东西共同决定：
 
 > 一条 trajectory 到底有多大概率发生。
+
 
 ---
 
@@ -248,7 +239,7 @@ $$
 即，如果奖励函数$R(\tau)$比较大时，轨迹$\tau =
 (s_0,a_0,r_1,s_1,a_1,r_2,\cdots,s_T)$出现的概率对应增大，反之减小。
 
-把 expectation 展开：
+$\mathbb{E}_{\tau \sim p_\theta(\tau)}$表示要使用概率$p_\theta(\tau)$来乘，把 expectation 展开：
 
 $$
 J(\theta)
