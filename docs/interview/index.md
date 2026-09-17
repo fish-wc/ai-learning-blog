@@ -16,3 +16,10 @@ order: 80
 ## 每道题的记录方式
 
 写出自己的答案后，再补充标准概念和反例；对于系统设计题，先画出最小可行架构，再逐步讨论规模扩大后的瓶颈。
+
+
+## 投递情况
+2026.9.14 投递腾讯犀牛鸟人才计划。
+
+2026.9.15 投递[快手kstar人才计划](./appendix/kuaishou/kstar)。[官网链接](https://campus.kuaishou.cn/recruit/campus/e/#/campus/job-info/11169)
+
