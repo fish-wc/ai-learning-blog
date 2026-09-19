@@ -19,6 +19,41 @@ math: false
 
 ---
 
+## 一、真正需要记住的核心信息
+
+这 12 条是“项目骨架”。不是逐字背，而是保证任何一条都能展开讲 1～3 分钟。
+
+1. **一句话项目介绍**：我的工作主要是把 Terminal 任务构造成可执行、可验证的环境，让 Teacher Agent rollout 出多轮交互轨迹，再经过自动验证和质量筛选转成 SFT 数据，训练后通过固定 Harness 评测，并根据 badcase 继续迭代数据。
+
+2. **Terminal Agent 和普通 SFT 的区别**：普通 SFT 更像 `instruction → answer`；Terminal Agent 学的是 `task + history + environment observation → next action`，核心是与环境持续交互。
+
+3. **一个标准任务至少包含什么**：Instruction、Docker Environment、Oracle/Reference Solution、Verifier/Test。Docker 保证隔离和可复现；Oracle 证明任务可解；Verifier 判断 Agent 最终是否真的成功。
+
+4. **Oracle 和 Verifier 不一样**：Oracle 回答“这道题能不能做出来”；Verifier 回答“Agent 当前有没有做出来”。最好还做 NOP check：什么都不做必须失败。
+
+5. **Harness 是什么**：它是模型和环境之间的执行层，负责构造上下文、调用 LLM、解析 tool call、执行 shell、回填 stdout/stderr、维护历史、控制 timeout/max turns、运行 verifier 和记录 trajectory。记住：`Agent ≠ Model`。
+
+6. **Trajectory 是什么**：不是最终答案，而是完整的 `Task → Action → Observation → Action → Observation → ... → Verifier`。Harbor 当前的 ATIF 规范也把 trajectory 定义成包含 agent reasoning、actions 和 observations 的完整交互历史，并面向调试、SFT、RL 共用。([GitHub][1])
+
+7. **为什么一个 Task 要多次 Rollout**：模型具有随机性，同一道题可以得到成功、失败、错误恢复和不同路径的数据。因此“3 万条”更合理地理解为 trajectory/episode 数，而不是 3 万个独立任务。
+
+8. **Success 不等于高质量数据**：成功轨迹可能靠 shortcut 或碰巧做对。真正有训练价值的是比较清晰的 `Inspect → Act → Verify`，以及发生错误以后根据 observation 做 Recovery。
+
+9. **失败轨迹不能一刀切**：Infrastructure failure 要排除；死循环式失败通常没价值；Recoverable failure 很有价值，因为它能教模型如何读 stderr、修正策略并恢复执行。
+
+10. **Loss Mask 怎么理解**：标准 Agent SFT 一般把 environment/tool observation 当上下文，主要监督 assistant/action token，而不是训练模型自己“生成 shell 输出”。当前 TRL 直接支持 `assistant_only_loss=True`。([Hugging Face][2])
+
+11. **实验为什么要固定 Harness**：Agent 最终效果不仅取决于模型，还取决于 prompt、tool schema、max turns、timeout、sampling、environment 和 verifier。因此比较不同 checkpoint 时必须尽量只改变一个变量。
+
+12. **19%→61% 应该怎么解释**：这是项目级结果，不要直接声称“我的方法贡献了 42 个百分点”。真正证明某个数据策略有效的是控制变量实验和 ablation；同时训练任务和 benchmark 必须隔离，防止 contamination。
+
+只过这一行：
+
+> **Task 标准化 → Docker → Oracle/NOP → Teacher Rollout → Trajectory → Verifier → Cleaning → Inspect-Act-Verify / Recovery → SFT + Loss Mask → Fixed Harness Eval → Badcase → Data Iteration。**
+
+
+---
+
 ## 1. 我们到底在训练什么？
 
 简述：学习基于task、history、observation去判断next action的能力，即 $ P(a_t \mid task, history, observation_{1:t-1}) $。
@@ -1116,6 +1151,8 @@ Teaching Quality
 
 # 17. 为什么还要做任务难度分桶？
 
+简述：**研究什么样的数据分布最适合当前阶段的 Student。**
+
 不同任务对模型的价值并不相同。
 
 一种很自然的 difficulty proxy 可以来自：
@@ -1246,6 +1283,8 @@ vs
 
 # 19. 第五步：SFT 训练
 
+TODO 探究一下怎么设置Loss Mask
+
 进入训练阶段以后，一个比较合理的算法实习工作边界通常是：
 
 ```text
@@ -1290,134 +1329,14 @@ Checkpoint 系统
 
 对于做数据和后训练的算法工程而言，更核心的问题是：
 
+补充：训练recipe ，一般有batch size、学习率、epoch、warmup、权重衰减、梯度累积。
+
 > **训练什么数据，以什么方式训练，以及训练以后能力到底发生了什么变化。**
 
 ---
 
-# 20. 第六步：为什么 Evaluation 必须固定 Harness？
 
-对于 Agent 来说，最终成绩不仅由模型决定。
-
-因为：
-
-```text
-Agent
-=
-Model
-+
-Harness
-+
-Prompt
-+
-Tools
-+
-Environment
-```
-
-例如同一个模型：
-
-Harness A：
-
-```text
-允许 200 个 Tool Calls
-```
-
-Harness B：
-
-```text
-最多 30 个 Tool Calls
-```
-
-结果可能完全不同。
-
-或者：
-
-```text
-A 允许错误后自动 retry
-B 直接判失败
-```
-
-也会影响结果。
-
-因此在比较不同 checkpoint 时，需要尽量固定：
-
-```text
-Task Set
-Environment Version
-System Prompt
-Tool Schema
-Harness
-Max Turns
-Timeout
-Sampling Parameters
-Verifier
-```
-
-只改变：
-
-```text
-Model Checkpoint
-```
-
-否则很难判断：
-
-> 最终提升到底来自模型，还是来自评测框架变化。
-
----
-
-# 21. Benchmark 一定要和训练集隔离
-
-这是整个 Agent 后训练中必须特别重视的一点。
-
-假设：
-
-```text
-Terminal-Bench Task
-        ↓
-直接进入训练集
-        ↓
-再拿 Terminal-Bench 测试
-```
-
-得到一个很高的分数。
-
-这个结果没有太大意义。
-
-因为模型可能只是：
-
-> 记住了这些任务或者相似操作。
-
-因此应该尽量保证：
-
-```text
-Training Tasks
-      ↓
-训练
-
-----------------
-
-Held-out Tasks
-      ↓
-Evaluation
-```
-
-尤其公开 Benchmark，更应该避免直接回流到训练语料。
-
-否则最终测到的是：
-
-```text
-Memorization
-```
-
-而不一定是：
-
-```text
-Generalization
-```
-
----
-
-# 22. 为什么“19% → 61%”不能直接理解成某一个方法带来的提升？
+# 20. 为什么“19% → 61%”不能直接理解成某一个方法带来的提升？
 
 假设最终结果：
 
@@ -1493,7 +1412,9 @@ With Recovery Data
 
 ---
 
-# 23. 最后一步：Badcase 如何重新变成训练数据？
+# 21. 最后一步：Badcase 如何重新变成训练数据？
+
+TODO 详细知识在"20260512 分析BrowseComp.docx"里面，有空整理一下。
 
 最终评测结束以后，并不是只记录：
 
@@ -1591,7 +1512,7 @@ SFT
 
 ---
 
-# 24. 回过头看：这项工作的核心到底是什么？
+# 22. 这项工作的核心到底是什么？
 
 刚开始接触 Terminal Agent 时，很容易觉得：
 
@@ -1603,7 +1524,7 @@ SFT
 
 ---
 
-## 24.1 Task 是否可靠？
+## 22.1 Task 是否可靠？
 
 如果任务环境本身坏了，后面的模型训练都没有意义。
 
@@ -1618,7 +1539,7 @@ Environment Reproducibility
 
 ---
 
-## 24.2 Trajectory 是否可信？
+## 22.2 Trajectory 是否可信？
 
 一个成功结果，不代表这是一条好的训练数据。
 
@@ -1633,7 +1554,7 @@ Recovery Analysis
 
 ---
 
-## 24.3 数据是否真的能迁移到 Student？
+## 22.3 数据是否真的能迁移到 Student？
 
 Teacher 自己强，不代表它生成的数据一定更适合 Student。
 
@@ -1650,7 +1571,7 @@ Loss Mask
 
 ---
 
-## 24.4 提升到底来自哪里？
+## 22.4 提升到底来自哪里？
 
 Final Score 只能说明项目结果。
 
@@ -1666,11 +1587,13 @@ Held-out Evaluation
 
 ---
 
-# 25. 最后总结
+# 23. 最后总结
+
+简述：**Agent 后训练本质上是一项围绕“环境、轨迹和反馈”展开的数据工程问题。**
 
 如果把整个 Terminal Agent 后训练流程压缩成一句话，我会这样描述：
 
-> **先把真实终端任务构造成可执行、可验证的环境，让 Teacher Agent 在环境中产生完整交互轨迹，再从大量轨迹中筛选真正具有教学价值的“观察—行动—验证—恢复”过程，将其转换为 SFT 数据训练 Student，最后通过固定环境和 Harness 做隔离评测，并利用 Badcase 继续指导下一轮数据构造。**
+> **先把真实终端任务构造成可执行、可验证的task数据，让 Teacher Agent 在环境中产生完整交互轨迹，再从大量轨迹中筛选真正具有教学价值的“观察—行动—验证—恢复”过程，将其转换为 SFT 数据训练 Student，最后通过固定环境和 Harness 做隔离评测，并利用 Badcase 继续指导下一轮数据构造。**
 
 因此，这项工作的核心并不是简单的：
 
@@ -1694,11 +1617,7 @@ Evaluate
 Iterate
 ```
 
-换句话说：
 
-> **Agent 后训练本质上是一项围绕“环境、轨迹和反馈”展开的数据工程与实验科学问题。**
-
-这也是我在梳理这段工作之后，对 Terminal Agent 后训练最直观的理解。
 
 
 
