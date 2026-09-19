@@ -14,3 +14,8 @@ node_modules/
 # *.docx
 
 backup/*
+
+# 把实习部分暂时去掉
+/docs/interview/resume.md
+/docs/interview/appendix/resume/FQA.md
+/docs/interview/appendix/resume/resume.md

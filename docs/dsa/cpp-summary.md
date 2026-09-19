@@ -11,3 +11,5 @@ order: 1
 <PdfViewer file="/cpp-summary.pdf" title="C++ 知识总结 PDF" />
 
 > 该笔记原始格式较复杂，转 Markdown 会丢失代码高亮与公式排版，因此以 PDF 原样展示。如需检索文本，可下载 PDF 后全文搜索。
+
+文件路径：[docs/public/cpp-summary.pdf](https://github.com/fish-wc/ai-learning-blog/blob/main/docs/public/cpp-summary.pdf)
