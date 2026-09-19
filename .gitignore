@@ -9,3 +9,8 @@ node_modules/
 # Local and editor files
 .DS_Store
 *.log
+
+# Word 源文件(不参与渲染,避免大体积二进制入库)
+# *.docx
+
+backup/*

@@ -14,6 +14,17 @@ export default defineConfig({
   base: normalizedBase,
   srcDir: 'docs',
   lastUpdated: true,
+  ignoreDeadLinks: [
+    /\.cpp$/,
+    /\.cxx$/,
+    /\.cc$/,
+    /\.c$/,
+    /\.h$/,
+    /\.hpp$/,
+    /\.hxx$/,
+    // rf/ppo.md 指向"多臂老虎机"说明页，目标尚未创建；建好该页面后可移除此条
+    /ppo\/multi-armed/
+  ],
 
   themeConfig: {
     siteTitle: 'AI Learning Blog',
@@ -23,6 +34,7 @@ export default defineConfig({
       { text: '大模型', link: '/llm/' },
       { text: '智能体', link: '/agent/' },
       { text: '强化学习', link: '/rf/' },
+      { text: '数据结构', link: '/dsa/' },
       { text: 'GitHub', link: 'https://github.com/fish-wc/ai-learning-blog' }
     ],
 

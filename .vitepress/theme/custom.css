@@ -16,3 +16,8 @@ mjx-container[display='true'] {
 .vp-doc mjx-container {
   color: var(--vp-c-text-1);
 }
+
+/* 正文全宽:去掉 VitePress 默认 688px 限制,占满布局宽度 */
+.vp-doc {
+  max-width: none !important;
+}

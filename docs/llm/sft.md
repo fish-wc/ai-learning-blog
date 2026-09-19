@@ -19,7 +19,9 @@ math: true
 ---
 # 速览
 
+掌握监督微调的数据构造方式，包括batch构造，padding操作，padding操作除了token末尾的padding token保留以外，其他的设置为-100，利用pytorch CrossEntropy的ingore_index=-100机制，不对-100的token计算交叉熵。掌握交叉熵的计算原理。
 
+TODO 下一次复习的时候，把内容删减一些。
 
 
 
