@@ -1,5 +1,5 @@
 ---
-title: "PPO 学习笔记：Policy Gradient 到底在优化什么？从 Log-Derivative Trick 到 REINFORCE + Baseline"
+title: "PPO 学习笔记：Policy Gradient 到底在优化什么？"
 date: 2026-09-10
 categories:
   - Reinforcement Learning
@@ -22,14 +22,14 @@ math: true
 
 1. Policy Gradient 到底在优化什么？
 2. Reward 明明不可导，为什么 Policy 还能通过梯度下降训练？
-3. REINFORCE 是怎么从 Policy Gradient 推出来的？
-4. 为什么减去一个 baseline 不会改变梯度的期望？
-5. 为什么 baseline 又能够降低 variance？
-6. 这些东西最后和 PPO 到底是什么关系？
+
 
 
 
 # 1. PPO究竟想优化什么？
+
+简述：Policy Gradient 优化的不是某一次 reward，而是**当前 Policy 所产生的 trajectory 的期望回报**。
+
 
 强化学习和监督学习有一个非常重要的区别。监督学习通常有一个明确的 loss：
 
@@ -163,7 +163,8 @@ $$
 
 # 3. 一个容易混淆的记号：$\pi_\theta(\tau)$
 
-简述：$\pi_\theta(\tau)$，即$p_\theta(\tau)$，即一条轨迹$\tau$发生的概率，即在当前状态$a_t$下进入状态$s_t$的概率 乘以 在$a_t$和$s_t$下进入状态$s_{t+1}$的概率。
+简述：$\pi_\theta(\tau)$，即$p_\theta(\tau)$，即一条轨迹$\tau$发生的概率，即在当前状态$a_t$下进入状态$s_t$的概率 乘以 在$a_t$和$s_t$下进入状态$s_{t+1}$的概率，从初始状态$s_0$开始累乘。
+备注：这里认为是马尔科夫过程，即当前状态仅与上一个状态相关。
 
 很多教程会写：
 
@@ -499,6 +500,8 @@ $$
 ---
 
 # 8. Reward 不可导，为什么 Policy 还能训练？
+
+概述：**Policy Gradient 不是在对 Reward 求梯度，而是在对“产生不同 Reward 的概率分布”求梯度。**
 
 现在正面回答这个问题。
 

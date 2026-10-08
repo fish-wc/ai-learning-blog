@@ -12,6 +12,11 @@ tags:
 math: true
 ---
 
+1. REINFORCE 是怎么从 Policy Gradient 推出来的？
+2. 为什么减去一个 baseline 不会改变梯度的期望？
+3. 为什么 baseline 又能够降低 variance？
+4. 这些东西最后和 PPO 到底是什么关系？
+
 # 1. REINFORCE 到底是什么？
 
 前面[Policy Gradient](/docs/rf/appendix/PPO/Policy_Gradient.md)得到：
