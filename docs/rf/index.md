@@ -25,10 +25,10 @@ order: 59
 
 概述：**Policy Gradient** : Policy Gradient 优化的不是某一次 reward，而是**当前 Policy 所产生的 trajectory 的期望回报**。
 
-[详细笔记](./appendix/PPO/Policy_Gradient.md)。[PPT制作脚本](./appendix/PPO/Policy_Gradient_Script.md)。
+[详细笔记](./appendix/PPO/Policy_Gradient.md)。[PPT制作脚本](./appendix/PPO/Policy_Gradient_script.md)。[ppt](./appendix/PPO/Policy_Gradient_到底在优化什么.html)。[PPT讲稿](./appendix/PPO/Policy_Gradient_讲稿.md)。
 
 ##  Reward 不可导，为什么 Policy 还能训练？
 
 概述：**Policy Gradient 不是在对 Reward 求梯度，而是在对“产生不同 Reward 的概率分布”求梯度**。
 
-[详细笔记](./appendix/PPO/Policy_Gradient.md)。[PPT制作脚本](./appendix/PPO/Policy_Gradient_Script.md)。
+[详细笔记](./appendix/PPO/Policy_Gradient.md)。[PPT制作脚本](./appendix/PPO/Policy_Gradient_script.md)。[ppt](./appendix/PPO/Policy_Gradient_到底在优化什么.html)。[PPT讲稿](./appendix/PPO/Policy_Gradient_讲稿.md)。

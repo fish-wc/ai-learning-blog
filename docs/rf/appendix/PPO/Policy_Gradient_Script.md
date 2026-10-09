@@ -147,3 +147,8 @@ $$
 简述：**Policy Gradient 不是在对 Reward 求梯度，而是在对“产生不同 Reward 的概率分布”求梯度。**
 
 结论：策略梯度目标，**让高 Reward trajectory 更容易发生，让低 Reward trajectory 更不容易发生。**
+
+
+# 参考文献
+
+1. Sutton, R. S., McAllester, D., Singh, S., & Mansour, Y. (1999). *Policy Gradient Methods for Reinforcement Learning with Function Approximation*. Advances in Neural Information Processing Systems 12.

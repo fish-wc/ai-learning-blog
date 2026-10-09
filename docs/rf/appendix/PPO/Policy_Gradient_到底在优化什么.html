@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Policy Gradient 到底在优化什么？｜PPO 学习笔记</title>
+<style>
+:root{
+  --ink:#141a2e; --sub:#5b6580; --faint:#8a94ab; --line:rgba(20,26,46,.10);
+  --pri:#4f46e5; --th:#d97706; --tau:#7c5cf5; --R:#0f9d6b; --pi:#0891b2;
+  --grad:#e11d48; --s:#3b6ef5; --a:#9333ea;
+  --card:#ffffff;
+  --shadow:0 10px 30px -12px rgba(28,36,68,.22), 0 2px 8px -4px rgba(28,36,68,.12);
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{width:100%;height:100%;overflow:hidden;background:#e9edf8;color:var(--ink);
+  font-family:"PingFang SC","Microsoft YaHei","Source Han Sans SC",system-ui,-apple-system,sans-serif;
+  -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;}
+
+#stage{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;}
+#deck{position:relative;width:1280px;height:720px;transform-origin:center center;}
+
+/* ---------- slide shell ---------- */
+.slide{position:absolute;inset:0;display:none;overflow:hidden;padding:52px 68px 60px;
+  background:#f4f6fd;border-radius:2px;}
+.slide.active{display:block;}
+.slide::before{content:"";position:absolute;inset:0;pointer-events:none;z-index:0;
+  background:
+    radial-gradient(680px 420px at 8% -6%, rgba(109,94,252,.16), transparent 62%),
+    radial-gradient(620px 420px at 100% 108%, rgba(10,168,208,.15), transparent 60%),
+    radial-gradient(520px 360px at 88% -8%, rgba(255,92,157,.11), transparent 62%);
+}
+.slide::after{content:"";position:absolute;inset:0;pointer-events:none;z-index:0;opacity:.5;
+  background-image:linear-gradient(rgba(20,26,46,.045) 1px,transparent 1px),
+                   linear-gradient(90deg,rgba(20,26,46,.045) 1px,transparent 1px);
+  background-size:44px 44px;
+  -webkit-mask-image:radial-gradient(circle at 50% 45%,#000 30%,transparent 78%);
+          mask-image:radial-gradient(circle at 50% 45%,#000 30%,transparent 78%);
+}
+.slide>*{position:relative;z-index:1;}
+
+/* ---------- ambient orbs ---------- */
+.orb{position:absolute;border-radius:50%;filter:blur(42px);opacity:.5;z-index:0;pointer-events:none;}
+.orb.o1{width:260px;height:260px;left:-80px;top:60px;background:radial-gradient(circle,#8b7bff,transparent 70%);animation:float1 13s ease-in-out infinite;}
+.orb.o2{width:220px;height:220px;right:-60px;bottom:-40px;background:radial-gradient(circle,#41d3e8,transparent 70%);animation:float2 16s ease-in-out infinite;}
+@keyframes float1{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(38px,-26px) scale(1.12)}}
+@keyframes float2{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(-32px,22px) scale(1.1)}}
+
+/* ---------- entrance animations ---------- */
+.a{opacity:0;}
+.active .au{animation:au .8s cubic-bezier(.16,.86,.3,1) both;animation-delay:var(--d,0s);}
+.active .ap{animation:ap .72s cubic-bezier(.2,1.5,.4,1) both;animation-delay:var(--d,0s);}
+.active .al{animation:al .8s cubic-bezier(.16,.86,.3,1) both;animation-delay:var(--d,0s);}
+.active .ar{animation:ar .8s cubic-bezier(.16,.86,.3,1) both;animation-delay:var(--d,0s);}
+.active .az{animation:az .8s cubic-bezier(.16,.86,.3,1) both;animation-delay:var(--d,0s);}
+@keyframes au{from{opacity:0;transform:translateY(28px)}to{opacity:1;transform:none}}
+@keyframes ap{from{opacity:0;transform:scale(.7)}to{opacity:1;transform:scale(1)}}
+@keyframes al{from{opacity:0;transform:translateX(-32px)}to{opacity:1;transform:none}}
+@keyframes ar{from{opacity:0;transform:translateX(32px)}to{opacity:1;transform:none}}
+@keyframes az{from{opacity:0;transform:scale(.9)}to{opacity:1;transform:none}}
+
+/* step-reveal (manual) */
+.step{opacity:0;transform:translateY(16px);transition:opacity .5s ease,transform .5s cubic-bezier(.16,.86,.3,1);}
+.step.on{opacity:1;transform:none;}
+
+/* ---------- typography ---------- */
+.tag{display:inline-flex;align-items:center;gap:8px;font-size:15px;font-weight:700;letter-spacing:.6px;
+  padding:7px 16px 7px 13px;border-radius:999px;color:#fff;
+  background:linear-gradient(120deg,#5b4bf0,#8b5cf6);box-shadow:0 6px 18px -8px rgba(91,75,240,.8);}
+.tag.q2{background:linear-gradient(120deg,#0a90c8,#12b8c9);box-shadow:0 6px 18px -8px rgba(10,144,200,.8);}
+.tag.sum{background:linear-gradient(120deg,#e11d48,#f97362);box-shadow:0 6px 18px -8px rgba(225,29,72,.75);}
+.tag .dot{width:8px;height:8px;border-radius:50%;background:#fff;box-shadow:0 0 0 4px rgba(255,255,255,.28);}
+h1.title{font-size:33px;line-height:1.25;font-weight:800;letter-spacing:.3px;margin-top:16px;}
+h1.title em{font-style:normal;background:linear-gradient(100deg,var(--pri),var(--pi));-webkit-background-clip:text;background-clip:text;color:transparent;}
+.head{display:flex;align-items:center;gap:14px;}
+.lead{color:var(--sub);font-size:16px;line-height:1.6;}
+
+/* ---------- cards ---------- */
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);}
+.chip{display:inline-flex;align-items:center;gap:7px;font-size:13px;font-weight:700;padding:4px 11px;border-radius:999px;}
+.k-th{color:var(--th)} .k-tau{color:var(--tau)} .k-R{color:var(--R)} .k-pi{color:var(--pi)}
+  .k-grad{color:var(--grad)} .k-s{color:var(--s)} .k-a{color:var(--a)}
+
+/* ---------- math ---------- */
+.math{font-family:"Cambria Math",Georgia,"Times New Roman",serif;font-size:29px;line-height:1.5;
+  color:var(--ink);letter-spacing:.3px;white-space:nowrap;}
+.math sub,.math sup{font-size:.58em;}
+.math .op{font-style:normal;padding:0 .14em;color:#5b6580;}
+.math .big{font-size:1.5em;font-style:normal;line-height:0;vertical-align:-.1em;}
+.math .var{font-style:italic;}
+.math .E{font-family:Georgia,"Cambria Math",serif;font-weight:600;font-size:1.08em;font-style:normal;}
+.mline{display:flex;align-items:center;justify-content:center;flex-wrap:nowrap;}
+.mid{display:flex;flex-direction:column;align-items:center;line-height:1.1;font-size:.92em;margin:0 .18em;}
+.mid .num{padding:0 .28em;}
+.mid .den{border-top:1.6px solid currentColor;padding:0 .28em;}
+
+/* ---------- misc ---------- */
+.flowarrow{display:flex;align-items:center;justify-content:center;color:var(--pri);font-size:24px;font-weight:800;}
+
+/* ---------- fixed HUD ---------- */
+#progress{position:fixed;top:0;left:0;height:4px;width:0;z-index:50;
+  background:linear-gradient(90deg,#5b4bf0,#0a90c8,#12b8c9);box-shadow:0 0 14px rgba(91,75,240,.6);
+  transition:width .45s cubic-bezier(.16,.86,.3,1);}
+#counter{position:fixed;right:20px;bottom:16px;z-index:50;font-size:13px;font-weight:700;color:#4b5470;
+  background:rgba(255,255,255,.86);border:1px solid var(--line);padding:5px 13px;border-radius:999px;
+  backdrop-filter:blur(6px);}
+#hint{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);z-index:50;font-size:12.5px;color:#6b7490;
+  background:rgba(255,255,255,.82);border:1px solid var(--line);padding:5px 14px;border-radius:999px;
+  backdrop-filter:blur(6px);animation:hintfade 1s ease 8s forwards;}
+@keyframes hintfade{to{opacity:0;visibility:hidden;}}
+
+/* =========================================================
+   SLIDE 1
+   ========================================================= */
+.hero{text-align:center;padding-top:26px;}
+.hero .kicker{display:inline-flex;gap:9px;align-items:center;font-size:14px;font-weight:700;color:var(--pri);
+  background:rgba(79,70,229,.10);border:1px solid rgba(79,70,229,.22);padding:7px 16px;border-radius:999px;letter-spacing:.4px;}
+.hero h1{font-size:56px;font-weight:900;line-height:1.12;margin:22px 0 14px;letter-spacing:.5px;}
+.hero h1 .g{background:linear-gradient(100deg,#4f46e5 10%,#8b5cf6 45%,#0891b2 90%);
+  -webkit-background-clip:text;background-clip:text;color:transparent;}
+.hero .subtitle{font-size:18px;color:var(--sub);}
+.hero .qgrid{display:grid;grid-template-columns:1fr 1fr;gap:22px;margin-top:34px;}
+.qcard{position:relative;text-align:left;padding:24px 24px 24px 26px;border-radius:18px;background:#fff;
+  border:1px solid var(--line);box-shadow:var(--shadow);overflow:hidden;}
+.qcard::before{content:"";position:absolute;left:0;top:0;bottom:0;width:5px;background:linear-gradient(180deg,#5b4bf0,#8b5cf6);}
+.qcard.b::before{background:linear-gradient(180deg,#0a90c8,#12b8c9);}
+.qcard .qno{display:inline-flex;align-items:center;justify-content:center;font-family:Georgia,serif;
+  width:44px;height:44px;font-size:19px;font-weight:800;color:#fff;border-radius:13px;
+  background:linear-gradient(135deg,#5b4bf0,#8b5cf6);box-shadow:0 8px 18px -8px rgba(91,75,240,.9);margin-bottom:12px;}
+.qcard.b .qno{background:linear-gradient(135deg,#0a90c8,#12b8c9);box-shadow:0 8px 18px -8px rgba(10,144,200,.9);}
+.qcard h3{font-size:19px;font-weight:800;line-height:1.4;margin-bottom:7px;}
+.qcard p{font-size:14.5px;color:var(--sub);line-height:1.6;}
+.sym-float{position:absolute;font-family:Georgia,serif;font-weight:700;opacity:.13;pointer-events:none;z-index:0;}
+@keyframes drift{0%,100%{transform:translateY(0) rotate(0)}50%{transform:translateY(-16px) rotate(6deg)}}
+
+/* =========================================================
+   generic content grid
+   ========================================================= */
+.body{display:flex;gap:26px;margin-top:22px;}
+.formbox{flex:1;padding:26px 30px;border-radius:18px;background:#fff;border:1px solid var(--line);box-shadow:var(--shadow);}
+.formbox .cap{font-size:13px;font-weight:800;color:var(--faint);letter-spacing:1px;text-transform:uppercase;margin-bottom:14px;}
+
+/* legend */
+.legend{width:392px;display:flex;flex-direction:column;gap:11px;}
+.leg{display:flex;gap:12px;align-items:flex-start;padding:11px 14px;border-radius:13px;background:#fff;
+  border:1px solid var(--line);box-shadow:0 6px 18px -14px rgba(28,36,68,.4);}
+.leg .sym{font-family:"Cambria Math",Georgia,serif;font-size:20px;font-weight:700;min-width:52px;text-align:center;
+  padding:3px 8px;border-radius:9px;background:rgba(20,26,46,.04);}
+.leg .txt{font-size:14px;line-height:1.5;color:var(--sub);}
+.leg .txt b{color:var(--ink);font-size:14.5px;}
+
+/* conclusion banner */
+.conclude{margin-top:22px;padding:20px 26px;border-radius:16px;color:#fff;position:relative;overflow:hidden;
+  background:linear-gradient(100deg,#4f46e5,#7c5cf5 55%,#0891b2);box-shadow:0 16px 34px -18px rgba(79,70,229,.9);}
+.conclude::after{content:"";position:absolute;top:-60px;right:-40px;width:220px;height:220px;border-radius:50%;
+  background:radial-gradient(circle,rgba(255,255,255,.28),transparent 70%);}
+.conclude .lbl{font-size:12.5px;font-weight:800;letter-spacing:2px;opacity:.85;text-transform:uppercase;}
+.conclude .big{font-size:20px;font-weight:800;line-height:1.55;margin-top:6px;}
+.conclude .big .hl{background:rgba(255,255,255,.22);border-radius:7px;padding:1px 9px;margin:0 2px;}
+
+/* reference footnote */
+.refbox{display:flex;gap:12px;align-items:flex-start;margin-top:12px;padding:9px 16px;border-radius:11px;
+  background:rgba(20,26,46,.035);border:1px solid var(--line);}
+.refbox .reflbl{flex:0 0 auto;font-size:11.5px;font-weight:800;letter-spacing:1px;color:#fff;
+  background:linear-gradient(120deg,#5b4bf0,#0891b2);padding:3px 10px;border-radius:999px;white-space:nowrap;}
+.refbox .refitem{font-size:11.6px;line-height:1.55;color:var(--sub);}
+.refbox .refitem i{font-style:italic;color:var(--ink);font-weight:600;}
+
+/* trajectory chain */
+.chain{display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:nowrap;margin:6px 0 4px;}
+.node{display:flex;flex-direction:column;align-items:center;gap:5px;}
+.node .box{min-width:56px;height:56px;padding:0 12px;display:flex;align-items:center;justify-content:center;
+  font-family:"Cambria Math",Georgia,serif;font-size:21px;font-weight:700;border-radius:14px;color:#fff;
+  box-shadow:0 10px 20px -10px rgba(28,36,68,.6);}
+.node .lbl{font-size:11.5px;font-weight:700;color:var(--faint);letter-spacing:.4px;}
+.bx-s{background:linear-gradient(140deg,#3b6ef5,#5b8cff);}
+.bx-a{background:linear-gradient(140deg,#9333ea,#b463f0);}
+.bx-r{background:linear-gradient(140deg,#0f9d6b,#2fc08c);}
+.chain .sep{color:#b9c1d6;font-size:20px;font-weight:800;margin-top:-18px;}
+.node.dots .box{background:transparent;color:var(--faint);box-shadow:none;border:2px dashed #c6cde0;font-size:24px;}
+
+/* step-line derivation */
+.dline{display:block;padding:13px 20px;margin:9px 0;border-radius:13px;background:#fbfcff;border:1px solid var(--line);
+  border-left:4px solid #cfd6ea;position:relative;}
+.dline.hot{border-left-color:var(--grad);background:linear-gradient(90deg,rgba(225,29,72,.06),#fbfcff 70%);}
+.dline.final{border-left-color:var(--R);background:linear-gradient(90deg,rgba(15,157,107,.09),#fbfcff 70%);}
+.dnote{font-size:12.5px;color:var(--faint);font-weight:700;padding-left:24px;}
+.hlwave{position:relative;}
+.hlwave::after{content:"";position:absolute;left:-2px;right:-2px;bottom:-3px;height:3px;border-radius:3px;
+  background:linear-gradient(90deg,var(--pri),var(--pi));animation:wave 2.2s ease-in-out infinite;}
+@keyframes wave{0%,100%{opacity:.35;transform:scaleX(.9)}50%{opacity:1;transform:scaleX(1)}}
+
+/* callout */
+.callout{display:flex;gap:12px;align-items:flex-start;padding:14px 18px;border-radius:13px;margin-top:10px;
+  background:rgba(225,29,72,.07);border:1px solid rgba(225,29,72,.22);}
+.callout .ic{font-size:20px;line-height:1;}
+.callout p{font-size:14px;line-height:1.6;color:#8a1436;font-weight:600;}
+
+/* summary */
+.sumgrid{display:flex;gap:16px;margin-top:16px;height:312px;}
+.sumcard{flex:1;padding:15px 18px;border-radius:16px;background:#fff;border:1px solid var(--line);box-shadow:var(--shadow);
+  display:flex;flex-direction:column;justify-content:center;}
+.sumhead{display:flex;align-items:center;gap:11px;margin-bottom:11px;}
+.sumhead .qno{width:38px;height:38px;border-radius:11px;display:flex;align-items:center;justify-content:center;
+  font-family:Georgia,serif;font-weight:800;color:#fff;font-size:16px;background:linear-gradient(135deg,#5b4bf0,#8b5cf6);}
+.sumhead .qno.b{background:linear-gradient(135deg,#0a90c8,#12b8c9);}
+.sumhead h4{font-size:16.5px;font-weight:800;line-height:1.3;}
+.sumcard p{font-size:13.6px;line-height:1.62;color:var(--sub);}
+.sumcard p .em{color:var(--ink);font-weight:800;}
+.mono{font-family:"Cambria Math",Georgia,serif;font-size:16px;color:var(--pri);font-weight:700;}
+
+/* bars panel */
+.barspanel{width:412px;padding:18px 20px;border-radius:16px;background:#fff;border:1px solid var(--line);box-shadow:var(--shadow);
+  display:flex;flex-direction:column;}
+.barspanel .cap{font-size:12.5px;font-weight:800;color:var(--faint);letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;}
+.baRow{display:flex;gap:20px;flex:1;align-items:stretch;margin-top:8px;}
+.baGroup{flex:1;display:flex;flex-direction:column;}
+.baGroup .gt{font-size:12px;font-weight:800;color:var(--sub);text-align:center;margin-bottom:6px;}
+.baBars{flex:1;display:flex;align-items:flex-end;justify-content:center;gap:11px;border-bottom:2px solid #e3e8f4;padding:0 4px;}
+.bar{width:30px;border-radius:8px 8px 3px 3px;transform-origin:bottom;
+  animation:grow 1s cubic-bezier(.16,.86,.3,1) both;animation-delay:var(--d,0s);}
+@keyframes grow{from{transform:scaleY(.02)}to{transform:scaleY(1)}}
+.bl{display:flex;flex-direction:column;align-items:center;height:100%;justify-content:flex-end;}
+.bl .v{font-size:10.5px;font-weight:800;margin-bottom:4px;}
+.bl .nm{font-size:10px;font-weight:700;color:var(--faint);margin-top:5px;white-space:nowrap;}
+.arrowup{font-size:12px;}
+
+/* ---------- slide 5 specific ---------- */
+.twoCol{display:flex;gap:24px;margin-top:18px;}
+.derivCol{flex:1;}
+.whyCol{width:352px;display:flex;flex-direction:column;gap:12px;}
+
+@keyframes pulseGlow{0%,100%{box-shadow:0 0 0 0 rgba(15,157,107,.4)}50%{box-shadow:0 0 0 12px rgba(15,157,107,0)}}
+.pulse{animation:pulseGlow 2.4s ease-in-out infinite;}
+
+/* =========================================================
+   静态版：已移除全部动画与过渡（内容不变）
+   —— 元素直接呈现最终状态，入场/分步/浮动/生长/淡出一律关闭
+   ========================================================= */
+*,*::before,*::after{animation:none !important;transition:none !important;}
+.a,.step{opacity:1 !important;transform:none !important;}
+</style>
+</head>
+<body>
+<div id="progress"></div>
+<div id="stage"><div id="deck">
+
+  <!-- ================= SLIDE 1 ================= -->
+  <section class="slide">
+    <div class="orb o1"></div><div class="orb o2"></div>
+    <span class="sym-float" style="left:60px;top:110px;font-size:74px;color:#5b4bf0;animation:drift 9s ease-in-out infinite;">θ</span>
+    <span class="sym-float" style="right:70px;top:80px;font-size:66px;color:#0891b2;animation:drift 11s ease-in-out infinite .6s;">τ</span>
+    <span class="sym-float" style="right:150px;bottom:150px;font-size:60px;color:#0f9d6b;animation:drift 10s ease-in-out infinite 1.1s;">∇</span>
+    <span class="sym-float" style="left:120px;bottom:120px;font-size:58px;color:#9333ea;animation:drift 12s ease-in-out infinite .3s;">π</span>
+
+    <div class="hero">
+      <span class="kicker a au" style="--d:.05s">PPO 学习笔记 · 开篇</span>
+      <h1 class="a au" style="--d:.16s">Policy Gradient<br><span class="g">到底在优化什么？</span></h1>
+      <p class="subtitle a au" style="--d:.28s">先回答两个问题，你就抓住了策略梯度的灵魂</p>
+
+      <div class="qgrid">
+        <div class="qcard a al" style="--d:.42s">
+          <div class="qno">Q1</div>
+          <h3>策略梯度的优化目标，究竟是什么？</h3>
+          <p>它优化的不是「某一次」的奖励，那到底是什么？</p>
+        </div>
+        <div class="qcard b a ar" style="--d:.54s">
+          <div class="qno">Q2</div>
+          <h3>Reward 与环境有关、不能求导，为什么还能用梯度下降训练？</h3>
+          <p>梯度要求可导，而奖励来自环境、不可导——它不是应该卡住吗？</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= SLIDE 2 ================= -->
+  <section class="slide">
+    <div class="orb o1"></div>
+    <div class="head">
+      <span class="tag a al" style="--d:.02s"><span class="dot"></span>问题 1</span>
+      <span class="lead a al" style="--d:.08s">策略梯度，究竟在优化什么？</span>
+    </div>
+    <h1 class="title a au" style="--d:.14s">先看目标：我们要优化的<em>真正对象</em></h1>
+
+    <div class="body">
+      <div class="formbox a al" style="--d:.24s">
+        <div class="cap">Optimization Objective</div>
+        <div class="mline math" style="margin:26px 0;">
+          <span class="var" style="color:var(--pri);font-weight:700;">J</span><span class="op">(</span><span class="var" style="color:var(--th)">θ</span><span class="op">)</span>
+          <span class="op">=</span>
+          <span class="E" style="color:var(--pi)">E</span><sub style="color:var(--pi)">τ∼π<sub>θ</sub></sub>
+          <span class="op">[</span><span class="var" style="color:var(--R)">R</span><span class="op">(</span><span class="var" style="color:var(--tau)">τ</span><span class="op">)</span><span class="op">]</span>
+        </div>
+        <div class="lead" style="text-align:center;font-size:15px;">
+          带着当前策略 <span class="mono">π<sub>θ</sub></span> 去采样一条轨迹 <span class="mono">τ</span>，
+          它拿到的回报 <span class="mono">R(τ)</span> —— 对所有可能的轨迹取<span style="color:var(--pri);font-weight:800;">期望</span>。
+        </div>
+      </div>
+
+      <div class="legend">
+        <div class="leg a ar" style="--d:.32s"><div class="sym" style="color:var(--th)">θ</div>
+          <div class="txt"><b>Policy 的参数</b><br>就是我们真正要更新、要学习的东西。</div></div>
+        <div class="leg a ar" style="--d:.40s"><div class="sym" style="color:var(--pi)">π<sub>θ</sub></div>
+          <div class="txt"><b>当前策略</b><br>参数为 θ 时，「在状态 s 下做什么动作」的决策者。</div></div>
+        <div class="leg a ar" style="--d:.48s"><div class="sym" style="color:var(--tau)">τ</div>
+          <div class="txt"><b>一整条 trajectory</b><br>从开局到结束的一整段完整经历。</div></div>
+        <div class="leg a ar" style="--d:.56s"><div class="sym" style="color:var(--R)">R(τ)</div>
+          <div class="txt"><b>这条轨迹的 return</b><br>这条经历最终到底拿了多少分。</div></div>
+      </div>
+    </div>
+
+    <div class="conclude a au" style="--d:.66s">
+      <div class="lbl">Take away</div>
+      <div class="big">Policy Gradient 优化的不是某一次 reward，而是
+        <span class="hl">当前 Policy 所产生的 trajectory 的「期望回报」</span>。</div>
+    </div>
+  </section>
+
+  <!-- ================= SLIDE 3 ================= -->
+  <section class="slide">
+    <div class="orb o2"></div>
+    <div class="head">
+      <span class="tag q2 a al" style="--d:.02s"><span class="dot"></span>问题 2 · 铺垫</span>
+      <span class="lead a al" style="--d:.08s">要推导，先把「轨迹」和「它的概率」说清楚</span>
+    </div>
+    <h1 class="title a au" style="--d:.14s">一条轨迹 τ，与它发生的概率 <em>p<sub>θ</sub>(τ)</em></h1>
+
+    <div class="formbox a au" style="--d:.24s;margin-top:18px;padding:20px 28px;">
+      <div class="cap" style="text-align:center">Trajectory</div>
+      <div class="chain" style="margin-top:6px;">
+        <div class="node a ap" style="--d:.30s"><div class="box bx-s">s<sub>0</sub></div><span class="lbl">起始状态</span></div>
+        <span class="sep a ap" style="--d:.34s">→</span>
+        <div class="node a ap" style="--d:.38s"><div class="box bx-a">a<sub>0</sub></div><span class="lbl">动作</span></div>
+        <span class="sep a ap" style="--d:.42s">→</span>
+        <div class="node a ap" style="--d:.46s"><div class="box bx-r">r<sub>1</sub></div><span class="lbl">奖励</span></div>
+        <span class="sep a ap" style="--d:.50s">→</span>
+        <div class="node a ap" style="--d:.54s"><div class="box bx-s">s<sub>1</sub></div><span class="lbl">新状态</span></div>
+        <span class="sep a ap" style="--d:.58s">→</span>
+        <div class="node a ap" style="--d:.62s"><div class="box bx-a">a<sub>1</sub></div><span class="lbl">动作</span></div>
+        <span class="sep a ap" style="--d:.66s">→</span>
+        <div class="node a ap" style="--d:.70s"><div class="box bx-r">r<sub>2</sub></div><span class="lbl">奖励</span></div>
+        <span class="sep a ap" style="--d:.74s">→</span>
+        <div class="node dots a ap" style="--d:.78s"><div class="box">⋯</div><span class="lbl">&nbsp;</span></div>
+        <span class="sep a ap" style="--d:.82s">→</span>
+        <div class="node a ap" style="--d:.86s"><div class="box bx-s">s<sub>T</sub></div><span class="lbl">终止</span></div>
+      </div>
+      <div class="mline math a au" style="--d:.92s;font-size:23px;margin-top:12px;color:var(--sub);">
+        <span class="var" style="color:var(--tau);font-weight:700;">τ</span>
+        <span class="op">= (</span>s<sub>0</sub>,a<sub>0</sub>,r<sub>1</sub>,s<sub>1</sub>,a<sub>1</sub>,r<sub>2</sub>,⋯,s<sub>T</sub><span class="op">)</span>
+      </div>
+    </div>
+
+    <div class="formbox a au" style="--d:.96s;margin-top:16px;padding:18px 28px;">
+      <div class="cap" style="text-align:center">这条轨迹 τ 发生的概率</div>
+      <div class="mline math" style="margin:12px 0 4px;font-size:26px;justify-content:center;">
+        <span class="var" style="color:var(--pi);font-weight:700;">p</span><sub style="color:var(--th)">θ</sub><span class="op">(</span><span class="var" style="color:var(--tau)">τ</span><span class="op">)</span>
+        <span class="op">=</span>
+        ρ<sub>0</sub>(s<sub>0</sub>)
+        <span class="big" style="color:var(--pri)">∏</span><sub style="color:var(--faint)">t=0</sub><sup style="color:var(--faint)">T−1</sup>
+        <span class="var" style="color:var(--pi);font-weight:700;">π</span><sub style="color:var(--th)">θ</sub>(a<sub>t</sub>|s<sub>t</sub>)
+        P(s<sub>t+1</sub>|s<sub>t</sub>,a<sub>t</sub>)
+      </div>
+      <div class="lead" style="text-align:center;margin-top:8px;font-size:14px;">
+        假设是马尔可夫过程：<b style="color:var(--ink)">下一状态只与当前状态有关</b>，
+        于是整条轨迹的概率 = 每一步概率<b style="color:var(--ink)">累乘</b>。
+      </div>
+    </div>
+
+    <div class="legend a au" style="--d:1.06s;width:100%;flex-direction:row;margin-top:14px;">
+      <div class="leg" style="flex:1"><div class="sym" style="color:var(--pi)">π<sub>θ</sub></div>
+        <div class="txt"><b>策略（带 θ，可学习）</b><br>状态 s<sub>t</sub> 下选动作 a<sub>t</sub> 的概率。</div></div>
+      <div class="leg" style="flex:1"><div class="sym" style="color:var(--s)">P</div>
+        <div class="txt"><b>环境转移（不带 θ）</b><br>环境的反应，<b>与 θ 无关</b>。</div></div>
+      <div class="leg" style="flex:1"><div class="sym" style="color:var(--faint)">ρ<sub>0</sub></div>
+        <div class="txt"><b>初始状态分布</b><br>s<sub>0</sub> 出现的概率，也与 θ 无关。</div></div>
+    </div>
+  </section>
+
+  <!-- ================= SLIDE 4 ================= -->
+  <section class="slide">
+    <div class="orb o1"></div>
+    <div class="head">
+      <span class="tag q2 a al" style="--d:.02s"><span class="dot"></span>问题 2 · 目标函数</span>
+      <span class="lead a al" style="--d:.08s">期望不能直接求导，先把它「展开」</span>
+    </div>
+    <h1 class="title a au" style="--d:.14s">把目标函数改写成<em>可以求导的形式</em></h1>
+
+    <div class="formbox a az" style="--d:.24s;margin-top:20px;padding:24px 30px;">
+      <div class="cap">原始目标函数</div>
+      <div class="mline math" style="margin:16px 0 10px;">
+        <span class="var" style="color:var(--pri);font-weight:700;">J</span>(<span class="var" style="color:var(--th)">θ</span>)
+        <span class="op">=</span>
+        <span class="E" style="color:var(--pi)">E</span><sub style="color:var(--pi)">τ∼p<sub>θ</sub>(τ)</sub>
+        [<span class="var" style="color:var(--R)">R</span>(<span class="var" style="color:var(--tau)">τ</span>)]
+      </div>
+      <div class="lead" style="font-size:14px;background:rgba(79,70,229,.06);border-radius:10px;padding:10px 16px;">
+        💡 与上一页含义完全一致：只是把「按策略 <span class="mono">π</span> 采样」换成了概率分布的写法 <span class="mono">p<sub>θ</sub>(τ)</span>。
+      </div>
+    </div>
+
+    <div class="flowarrow a ap" style="--d:.40s;margin:10px 0;">
+      <span style="font-size:14px;font-weight:800;color:var(--sub);margin-right:12px;">期望展开 → 写成积分</span>
+      <span style="font-size:26px;">↓</span>
+    </div>
+
+    <div class="formbox a az" style="--d:.48s;padding:24px 30px;">
+      <div class="cap">展开成积分形式</div>
+      <div class="mline math" style="margin:16px 0 10px;">
+        <span class="var" style="color:var(--pri);font-weight:700;">J</span>(<span class="var" style="color:var(--th)">θ</span>)
+        <span class="op">=</span>
+        <span class="big" style="color:var(--pri)">∫</span>
+        <span class="var" style="color:var(--pi);font-weight:700;">p</span><sub style="color:var(--th)">θ</sub>(<span class="var" style="color:var(--tau)">τ</span>)
+        <span class="var" style="color:var(--R)">R</span>(<span class="var" style="color:var(--tau)">τ</span>)
+        <span style="font-style:italic;">d</span><span class="var" style="color:var(--tau)">τ</span>
+      </div>
+      <div class="lead" style="font-size:14px;background:rgba(8,145,178,.07);border-radius:10px;padding:10px 16px;">
+        📐 这里把 τ 视为<b style="color:var(--ink)">连续分布</b>：期望 = 对 τ 求积分。只有写成积分，才能对 θ 求梯度。
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= SLIDE 5 ================= -->
+  <section class="slide">
+    <div class="orb o2"></div>
+    <div class="head">
+      <span class="tag q2 a al" style="--d:.02s"><span class="dot"></span>问题 2 · 核心推导</span>
+      <span class="lead a al" style="--d:.08s">对 θ 求梯度，Reward 为什么「溜走」了？</span>
+    </div>
+    <h1 class="title a au" style="--d:.14s">梯度到底作用在<em>谁</em>身上？</h1>
+
+    <div class="twoCol">
+      <div class="derivCol">
+        <div class="dline step">
+          <div class="math" style="font-size:24px;">
+            <span class="var" style="color:var(--grad);font-weight:700;">∇<sub>θ</sub></span>
+            <span class="var" style="color:var(--pri);font-weight:700;">J</span>(<span class="var" style="color:var(--th)">θ</span>)
+            <span class="op">=</span>
+            <span class="var" style="color:var(--grad);font-weight:700;">∇<sub>θ</sub></span>
+            <span class="big" style="color:var(--pri)">∫</span>
+            <span class="var" style="color:var(--pi);font-weight:700;">p</span><sub style="color:var(--th)">θ</sub>(<span class="var" style="color:var(--tau)">τ</span>)
+            <span class="var" style="color:var(--R)">R</span>(<span class="var" style="color:var(--tau)">τ</span>)
+            <span style="font-style:italic;">d</span><span class="var" style="color:var(--tau)">τ</span>
+          </div>
+          <div class="dnote">① 先对目标函数求梯度 —— 更新参数前必须先有梯度。</div>
+        </div>
+
+        <div class="dline step">
+          <div class="math" style="font-size:24px;">
+            <span class="op">=</span>
+            <span class="big" style="color:var(--pri)">∫</span>
+            <span class="var" style="color:var(--grad);font-weight:700;">∇<sub>θ</sub></span>
+            <span class="op">[</span>
+            <span class="var" style="color:var(--pi);font-weight:700;">p</span><sub style="color:var(--th)">θ</sub>(<span class="var" style="color:var(--tau)">τ</span>)
+            <span class="var" style="color:var(--R)">R</span>(<span class="var" style="color:var(--tau)">τ</span>)
+            <span class="op">]</span>
+            <span style="font-style:italic;">d</span><span class="var" style="color:var(--tau)">τ</span>
+          </div>
+          <div class="dnote">② 积分与求导可交换：把梯度「搬进」积分号里面。</div>
+        </div>
+
+        <div class="dline step hot">
+          <div class="math" style="font-size:24px;">
+            <span class="op">=</span>
+            <span class="big" style="color:var(--pri)">∫</span>
+            <span class="var" style="color:var(--R);font-weight:800;">R</span><span style="color:var(--R);font-weight:800;">(</span><span class="var" style="color:var(--tau);font-weight:800;">τ</span><span style="color:var(--R);font-weight:800;">)</span>
+            <span class="var" style="color:var(--grad);font-weight:700;">∇<sub>θ</sub></span>
+            <span class="var" style="color:var(--pi);font-weight:700;">p</span><sub style="color:var(--th)">θ</sub>(<span class="var" style="color:var(--tau)">τ</span>)
+            <span style="font-style:italic;">d</span><span class="var" style="color:var(--tau)">τ</span>
+          </div>
+          <div class="dnote">③ 一条确定的轨迹里，R(τ) 不显式依赖 θ → 它被原样「拽」到梯度外面，<b style="color:var(--grad)">不求导</b>。</div>
+        </div>
+      </div>
+
+      <div class="whyCol">
+        <div class="card step" style="padding:16px 18px;border-top:3px solid var(--grad);">
+          <div class="chip k-grad" style="background:rgba(225,29,72,.09)">关键观察</div>
+          <p style="font-size:14px;line-height:1.65;color:var(--sub);margin-top:9px;">
+            看第 ③ 行：式子里<b style="color:var(--ink)">根本没有对 R(τ) 求导</b>。<br>
+            因为奖励由<b style="color:var(--ink)">环境</b>决定，与参数 θ 无关 ——
+            所以「不可导」根本不影响更新。
+          </p>
+        </div>
+        <div class="callout step">
+          <div class="ic">🎯</div>
+          <p>Policy Gradient 不是在对 <b>Reward</b> 求梯度，<br>而是在对「产生不同 Reward 的 <b>概率分布</b>」求梯度。</p>
+        </div>
+        <div class="card step pulse" style="padding:14px 18px;background:linear-gradient(120deg,rgba(79,70,229,.08),rgba(8,145,178,.08));border:1px solid rgba(79,70,229,.2);">
+          <p style="font-size:13.5px;line-height:1.6;color:var(--sub);">
+            换句话说：梯度在悄悄「<b style="color:var(--pri)">调概率</b>」——
+            谁带来的回报高，就让「走到它」的概率变大。
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= SLIDE 6 ================= -->
+  <section class="slide">
+    <div class="orb o1"></div>
+    <div class="head">
+      <span class="tag sum a al" style="--d:.02s"><span class="dot"></span>总结</span>
+      <span class="lead a al" style="--d:.08s">两个问题的答案</span>
+    </div>
+    <h1 class="title a au" style="--d:.14s">一句话记住：梯度在<em>调概率</em></h1>
+
+    <div class="sumgrid">
+      <div style="flex:1;display:flex;flex-direction:column;gap:18px;">
+        <div class="sumcard a al" style="--d:.24s;flex:1;">
+          <div class="sumhead">
+            <div class="qno">Q1</div>
+            <h4>策略梯度优化什么？</h4>
+          </div>
+          <p>优化的不是某一次 reward，而是<span class="em">当前 Policy 所产生的 trajectory 的期望回报</span>。
+            也就是「这套策略平均能拿多少分」。</p>
+        </div>
+        <div class="sumcard a al" style="--d:.34s;flex:1;">
+          <div class="sumhead">
+            <div class="qno b">Q2</div>
+            <h4>Reward 不可导，为何还能训练？</h4>
+          </div>
+          <p>梯度最终作用在概率 <span class="mono">∇<sub>θ</sub>p<sub>θ</sub>(τ)</span> 上，
+            <span class="em">R(τ) 只负责「缩放」</span>。奖励不可导，完全不参与求导。</p>
+        </div>
+      </div>
+
+      <div class="barspanel a ar" style="--d:.44s">
+        <div class="cap">直觉：一次更新后，概率发生了什么</div>
+        <div class="baRow">
+          <div class="baGroup">
+            <div class="gt">更新前</div>
+            <div class="baBars">
+              <div class="bl"><div class="bar" style="height:46%;background:linear-gradient(180deg,#f4a0a0,#ef6b6b)"></div><span class="nm">低R</span></div>
+              <div class="bl"><div class="bar" style="height:50%;background:linear-gradient(180deg,#f6c579,#f0a938)"></div><span class="nm">中R</span></div>
+              <div class="bl"><div class="bar" style="height:54%;background:linear-gradient(180deg,#7fd4b3,#35b98c)"></div><span class="nm">高R</span></div>
+            </div>
+          </div>
+          <div class="baGroup">
+            <div class="gt">更新后</div>
+            <div class="baBars">
+              <div class="bl"><div class="v" style="color:#ef6b6b">▼</div><div class="bar" style="height:24%;background:linear-gradient(180deg,#f4a0a0,#ef6b6b);--d:.55s"></div><span class="nm">低R</span></div>
+              <div class="bl"><div class="v" style="color:#f0a938">≈</div><div class="bar" style="height:47%;background:linear-gradient(180deg,#f6c579,#f0a938);--d:.65s"></div><span class="nm">中R</span></div>
+              <div class="bl"><div class="v" style="color:#35b98c">▲</div><div class="bar" style="height:82%;background:linear-gradient(180deg,#7fd4b3,#35b98c);--d:.75s"></div><span class="nm">高R</span></div>
+            </div>
+          </div>
+        </div>
+        <div style="font-size:12.5px;color:var(--faint);font-weight:700;text-align:center;margin-top:8px;">
+          高 Reward 概率 ↑ &nbsp;·&nbsp; 低 Reward 概率 ↓
+        </div>
+      </div>
+    </div>
+
+    <div class="conclude a au" style="--d:.9s;margin-top:12px;padding:15px 24px;background:linear-gradient(100deg,#e11d48,#f97362 45%,#f0a938);">
+      <div class="lbl">结论</div>
+      <div class="big" style="font-size:18px;margin-top:4px;">策略梯度的目标 —— <span class="hl">让高 Reward 的 trajectory 更容易发生，让低 Reward 的 trajectory 更不容易发生</span>。</div>
+    </div>
+
+    <div class="refbox a au" style="--d:1.02s">
+      <span class="reflbl">参考文献</span>
+      <span class="refitem">[1] Sutton, R. S., McAllester, D., Singh, S., &amp; Mansour, Y. (1999).
+        <i>Policy Gradient Methods for Reinforcement Learning with Function Approximation</i>.
+        Advances in Neural Information Processing Systems 12.</span>
+    </div>
+  </section>
+
+</div></div>
+
+<div id="counter">1 / 6</div>
+<div id="hint">← → 翻页 &nbsp;·&nbsp; 空格 / 点击 前进</div>
+
+<script>
+(function(){
+  var deck=document.getElementById('deck');
+  var slides=[].slice.call(document.querySelectorAll('.slide'));
+  var total=slides.length, cur=0;
+  var counter=document.getElementById('counter');
+  var progress=document.getElementById('progress');
+
+  function fit(){
+    var s=Math.min(window.innerWidth/1280, window.innerHeight/720);
+    deck.style.transform='scale('+s+')';
+  }
+  function show(i){
+    cur=Math.max(0, Math.min(total-1, i));
+    slides.forEach(function(el,n){ el.classList.toggle('active', n===cur); });
+    counter.textContent=(cur+1)+' / '+total;
+    progress.style.width=((cur+1)/total*100)+'%';
+    try{ history.replaceState(null,'','#'+(cur+1)); }catch(e){}
+  }
+  function next(){ if(cur<total-1) show(cur+1); }
+  function prev(){ if(cur>0) show(cur-1); }
+
+  window.addEventListener('keydown',function(e){
+    if(['ArrowRight','ArrowDown','PageDown',' '].indexOf(e.key)>=0){ e.preventDefault(); next(); }
+    else if(['ArrowLeft','ArrowUp','PageUp','Backspace'].indexOf(e.key)>=0){ e.preventDefault(); prev(); }
+    else if(e.key==='Home'){ show(0); }
+    else if(e.key==='End'){ show(total-1); }
+  });
+  document.addEventListener('click',function(e){
+    if(e.clientX < window.innerWidth*0.18) prev(); else next();
+  });
+  window.addEventListener('resize',fit);
+
+  var h=parseInt((location.hash||'').replace('#',''),10);
+  fit();
+  show(isNaN(h)?0:Math.max(0,Math.min(total-1,h-1)));
+})();
+</script>
+</body>
+</html>
