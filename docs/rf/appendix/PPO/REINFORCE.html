@@ -1,0 +1,968 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>REINFORCE 到底是什么？| Policy Gradient 系列</title>
+<style>
+:root{
+  --pri:#1e5eff;          /* 主色：科技蓝 */
+  --pri-d:#0f3fb0;
+  --pri-l:#e8f0ff;
+  --teal:#0aa88a;         /* 辅助：青绿 */
+  --teal-l:#e3f7f2;
+  --amber:#f08a24;        /* 强调：橙 */
+  --amber-l:#fff3e3;
+  --rose:#e04b6a;         /* 警示：玫红 */
+  --rose-l:#fdeaee;
+  --violet:#7a5cf0;
+  --violet-l:#f0ecff;
+  --ink:#101a2e;
+  --ink-2:#3d4a63;
+  --ink-3:#6d7b94;
+  --line:#dde4f0;
+  --card:#ffffff;
+  --bg:#f4f7fd;
+  --mono:"Cascadia Mono","Consolas","Menlo",monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;overflow:hidden;background:#0a1020;}
+body{
+  font-family:"PingFang SC","Microsoft YaHei","Source Han Sans SC",system-ui,sans-serif;
+  color:var(--ink);
+  -webkit-font-smoothing:antialiased;
+}
+#deck{position:relative;width:1280px;height:720px;margin:0 auto;transform-origin:center center;}
+
+.slide{
+  display:none;position:absolute;inset:0;
+  width:1280px;height:720px;
+  background:var(--bg);
+  padding:44px 58px 52px;
+  overflow:hidden;
+}
+.slide.active{display:block;}
+
+/* ---------- 通用头部 ---------- */
+.tag{
+  display:inline-flex;align-items:center;gap:7px;
+  font-size:13px;font-weight:700;letter-spacing:.06em;
+  color:var(--pri);background:var(--pri-l);
+  padding:5px 13px;border-radius:99px;
+  border:1px solid #cfe0ff;
+}
+.tag.t-teal{color:var(--teal);background:var(--teal-l);border-color:#bfe9df;}
+.tag.t-amber{color:#b96a10;background:var(--amber-l);border-color:#f7ddb8;}
+.tag.t-rose{color:#bf3350;background:var(--rose-l);border-color:#f8cfd8;}
+.tag.t-violet{color:#5c3fd6;background:var(--violet-l);border-color:#ddd4ff;}
+.tag .dot{width:7px;height:7px;border-radius:50%;background:currentColor;}
+
+h1.title{font-size:38px;line-height:1.22;font-weight:800;letter-spacing:-.01em;margin-top:14px;}
+h2.title{font-size:31px;line-height:1.24;font-weight:800;letter-spacing:-.01em;margin-top:12px;}
+h2.title em{font-style:normal;color:var(--pri);}
+.sub{font-size:15.5px;color:var(--ink-3);margin-top:9px;line-height:1.5;}
+
+.head{border-bottom:2px solid var(--line);padding-bottom:16px;margin-bottom:22px;}
+
+.serif{font-family:Georgia,"Songti SC",serif;}
+
+/* ---------- 页码 / 进度 ---------- */
+.pageno{
+  position:absolute;right:58px;bottom:20px;
+  font-size:12.5px;font-weight:700;color:var(--ink-3);letter-spacing:.08em;
+  font-family:var(--mono);
+}
+.footnote{
+  position:absolute;left:58px;bottom:21px;
+  font-size:12px;color:#9aa7bd;letter-spacing:.02em;
+}
+
+/* ---------- 卡片 ---------- */
+.card{
+  background:var(--card);border:1px solid var(--line);border-radius:14px;
+  padding:16px 18px;box-shadow:0 2px 10px rgba(20,40,90,.05);
+}
+.card.hl-pri{border-left:4px solid var(--pri);}
+.card.hl-teal{border-left:4px solid var(--teal);}
+.card.hl-amber{border-left:4px solid var(--amber);}
+.card.hl-rose{border-left:4px solid var(--rose);}
+.card.hl-violet{border-left:4px solid var(--violet);}
+.card-t{font-size:15px;font-weight:800;color:var(--ink);margin-bottom:7px;display:flex;align-items:center;gap:8px;}
+.card-b{font-size:14px;line-height:1.65;color:var(--ink-2);}
+
+/* 编号徽章 */
+.num{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:23px;height:23px;border-radius:7px;flex:none;
+  background:var(--pri);color:#fff;font-size:12.5px;font-weight:800;
+  font-family:var(--mono);
+}
+.num.n-teal{background:var(--teal);}
+.num.n-amber{background:var(--amber);}
+.num.n-rose{background:var(--rose);}
+.num.n-violet{background:var(--violet);}
+.num.n-ink{background:#46536e;}
+
+/* 公式 */
+.fml{
+  font-family:Georgia,"Cambria Math",serif;
+  font-size:19px;color:var(--ink);
+  background:#f8fafd;border:1px solid var(--line);
+  border-radius:10px;padding:11px 18px;
+  display:inline-block;line-height:1.5;
+  letter-spacing:.01em;
+}
+.fml.big{font-size:22px;padding:14px 24px;}
+.fml.bare{background:none;border:none;padding:4px 0;}
+.fml .v{color:var(--pri);font-weight:700;}
+.fml .g{color:var(--teal);font-weight:700;}
+.fml .a{color:#c46a00;font-weight:700;}
+.fml .r{color:var(--rose);font-weight:700;}
+.fml-c{text-align:center;}
+
+code,.code{
+  font-family:var(--mono);font-size:13.5px;
+  background:#eef3fb;color:#25489e;
+  padding:2px 7px;border-radius:6px;
+}
+.b{font-weight:700;}
+.c-pri{color:var(--pri);}
+.c-teal{color:var(--teal);}
+.c-amber{color:#b96a10;}
+.c-rose{color:var(--rose);}
+.c-ink3{color:var(--ink-3);}
+
+/* 行 */
+.row{display:flex;gap:18px;}
+.col{flex:1;min-width:0;}
+
+/* 竖排流程 */
+.flow{position:relative;padding-left:26px;}
+.flow::before{content:"";position:absolute;left:8px;top:8px;bottom:8px;width:2px;background:linear-gradient(var(--pri),var(--teal));opacity:.35;border-radius:2px;}
+.flow-i{position:relative;margin-bottom:13px;}
+.flow-i:last-child{margin-bottom:0;}
+.flow-i::before{content:"";position:absolute;left:-22px;top:6px;width:10px;height:10px;border-radius:50%;background:#fff;border:2.5px solid var(--pri);}
+.flow-i.teal::before{border-color:var(--teal);}
+.flow-i.amber::before{border-color:var(--amber);}
+.flow-i .ft{font-size:14.5px;font-weight:700;color:var(--ink);margin-bottom:2px;}
+.flow-i .fb{font-size:13.5px;color:var(--ink-3);line-height:1.55;}
+
+/* 小徽章组 */
+.chips{display:flex;gap:9px;flex-wrap:wrap;}
+.chip{
+  font-size:13px;font-weight:700;padding:6px 13px;border-radius:9px;
+  background:#fff;border:1px solid var(--line);color:var(--ink-2);
+  display:inline-flex;align-items:center;gap:6px;
+}
+.chip.on{background:var(--pri);border-color:var(--pri);color:#fff;}
+.chip.on-teal{background:var(--teal);border-color:var(--teal);color:#fff;}
+.chip.on-amber{background:var(--amber);border-color:var(--amber);color:#fff;}
+.chip.on-rose{background:var(--rose);border-color:var(--rose);color:#fff;}
+
+/* 箭头 */
+.arw{display:flex;align-items:center;justify-content:center;color:#b9c6dc;font-size:22px;flex:none;font-weight:300;}
+
+/* 表格 */
+table.t{width:100%;border-collapse:separate;border-spacing:0;font-size:13.5px;}
+table.t th{
+  background:linear-gradient(135deg,var(--pri),var(--pri-d));color:#fff;
+  padding:9px 13px;text-align:left;font-weight:700;font-size:13px;letter-spacing:.02em;
+}
+table.t th:first-child{border-radius:9px 0 0 0;}
+table.t th:last-child{border-radius:0 9px 0 0;}
+table.t td{padding:9px 13px;border-bottom:1px solid var(--line);color:var(--ink-2);line-height:1.5;background:#fff;}
+table.t tr:last-child td{border-bottom:none;}
+table.t tr:last-child td:first-child{border-radius:0 0 0 9px;}
+table.t tr:last-child td:last-child{border-radius:0 0 9px 0;}
+table.t td.k{font-weight:800;color:var(--ink);}
+
+/* 提示块 */
+.note{
+  background:var(--amber-l);border:1px solid #f7ddb8;border-radius:11px;
+  padding:12px 16px;font-size:13.5px;line-height:1.6;color:#7a4a06;
+  display:flex;gap:10px;
+}
+.note.n-pri{background:var(--pri-l);border-color:#cfe0ff;color:#12408f;}
+.note.n-teal{background:var(--teal-l);border-color:#bfe9df;color:#076b57;}
+.note .ni{font-size:16px;line-height:1.3;flex:none;}
+
+/* 关键词高亮 */
+mark{background:linear-gradient(transparent 58%,#ffe08a 58%);color:inherit;padding:0 1px;border-radius:2px;}
+mark.m-pri{background:linear-gradient(transparent 58%,#c3d9ff 58%);}
+mark.m-teal{background:linear-gradient(transparent 58%,#b6ecdf 58%);}
+
+/* 大数字 / 强调数字 */
+.kpi{font-family:Georgia,serif;font-weight:700;line-height:1;}
+
+/* 封面 */
+.cover{
+  background:
+    radial-gradient(900px 520px at 82% -12%,rgba(30,94,255,.16),transparent 62%),
+    radial-gradient(680px 460px at 6% 106%,rgba(10,168,138,.15),transparent 60%),
+    linear-gradient(160deg,#ffffff 0%,#f2f6ff 100%);
+}
+.cover .grid-bg{
+  position:absolute;inset:0;
+  background-image:linear-gradient(rgba(30,94,255,.055) 1px,transparent 1px),linear-gradient(90deg,rgba(30,94,255,.055) 1px,transparent 1px);
+  background-size:44px 44px;
+  mask-image:radial-gradient(circle at 48% 42%,#000 30%,transparent 78%);
+  -webkit-mask-image:radial-gradient(circle at 48% 42%,#000 30%,transparent 78%);
+}
+.hint{
+  position:fixed;left:50%;bottom:16px;transform:translateX(-50%);
+  font-size:12.5px;color:#8b96ad;background:rgba(255,255,255,.9);
+  border:1px solid var(--line);padding:6px 16px;border-radius:99px;
+  box-shadow:0 3px 12px rgba(20,40,90,.09);letter-spacing:.03em;z-index:50;
+  animation:hintfade .9s ease 8s forwards;pointer-events:none;
+}
+@keyframes hintfade{to{opacity:0;visibility:hidden;}}
+#bar{position:absolute;left:0;top:0;height:3px;background:linear-gradient(90deg,var(--pri),var(--teal));width:0;transition:width .3s ease;z-index:40;}
+svg text{font-family:"PingFang SC","Microsoft YaHei",sans-serif;}
+</style>
+</head>
+<body>
+<div id="deck">
+  <div id="bar"></div>
+
+  <!-- ============ 1. 封面 / 引入 ============ -->
+  <section class="slide cover active">
+    <div class="grid-bg"></div>
+    <div style="position:relative;height:100%;display:flex;flex-direction:column;justify-content:center;padding-bottom:8px;">
+
+      <div class="tag" style="align-self:flex-start;"><span class="dot"></span>POLICY GRADIENT 系列 · 附录</div>
+
+      <h1 class="title" style="font-size:63px;margin-top:22px;line-height:1.12;letter-spacing:-.015em;">
+        REINFORCE <span style="color:var(--pri);">到底是什么？</span>
+      </h1>
+
+      <p class="sub" style="font-size:17.5px;max-width:880px;margin-top:18px;line-height:1.62;">
+        从 Policy Gradient 出发，用一条「对数求导」技巧，<br>
+        把<span class="b c-ink3">积分的梯度</span>变成<span class="b c-pri">可以采样的期望</span> —— 这就是 REINFORCE，最朴素的蒙特卡洛策略梯度。
+      </p>
+
+      <!-- 核心问题 + 子问题：横向一条 -->
+      <div class="card hl-pri" style="margin-top:38px;display:flex;align-items:stretch;gap:0;padding:0;overflow:hidden;max-width:930px;">
+        <div style="flex:0 0 276px;padding:18px 21px;background:linear-gradient(150deg,#eef4ff,#e3edff);border-right:1px solid #d5e3ff;">
+          <div style="font-size:11.5px;font-weight:800;color:var(--pri);letter-spacing:.09em;">这一页要回答的 1 个问题</div>
+          <div style="font-size:17px;font-weight:800;line-height:1.42;color:var(--ink);margin-top:8px;">
+            REINFORCE 到底是什么，<br>它为什么长成那个样子？
+          </div>
+        </div>
+        <div style="flex:1;padding:18px 23px;display:flex;flex-direction:column;justify-content:center;">
+          <div style="font-size:12.5px;font-weight:700;color:var(--ink-3);margin-bottom:12px;">要讲明白它，先拆成 3 个子问题：</div>
+          <div style="display:flex;gap:10px;">
+            <div class="chip on" style="font-size:12.5px;padding:6px 13px;"><span style="font-family:var(--mono);font-size:11px;">01</span> 对数求导策略</div>
+            <div class="chip on-teal" style="font-size:12.5px;padding:6px 13px;"><span style="font-family:var(--mono);font-size:11px;">02</span> 怎么推出来</div>
+            <div class="chip on-amber" style="font-size:12.5px;padding:6px 13px;"><span style="font-family:var(--mono);font-size:11px;">03</span> 本质是什么</div>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-top:32px;display:flex;align-items:center;gap:12px;font-size:13px;color:var(--ink-3);">
+        <span style="width:36px;height:2px;background:linear-gradient(90deg,var(--pri),var(--teal));border-radius:2px;"></span>
+        <span>共 12 页 · 含 3 个进阶知识点（Return-to-Go / Baseline / 期望不变性）</span>
+      </div>
+    </div>
+    <div class="footnote">Reinforcement Learning · 笔记整理</div>
+    <div class="pageno"></div>
+  </section>
+
+  <!-- ============ 2. 对数求导策略 ============ -->
+  <section class="slide">
+    <div class="head">
+      <div class="tag"><span class="dot"></span>第 1 个子问题</div>
+      <h2 class="title">对数求导策略：一条「回头看」的等式变形</h2>
+      <p class="sub" style="font-size:15.5px;color:var(--ink-3);margin-top:9px;line-height:1.5;">它是 Policy Gradient 推导出 REINFORCE 的<mark class="m-pri">关键数学技巧</mark>。核心只有一步：把 <span class="b">∇p</span> 换一种写法。</p>
+    </div>
+
+    <div class="row" style="gap:22px;align-items:stretch;">
+      <!-- 左：等式 -->
+      <div class="col" style="flex:1.05;">
+        <div class="card" style="padding:18px 20px;">
+          <div class="card-t"><span class="num">1</span>对 log p 求导</div>
+          <div class="fml-c" style="margin:10px 0 16px;">
+            <span class="fml big"><span class="v">∇</span> log p = <span style="display:inline-block;vertical-align:middle;font-size:.9em;"><span style="border-bottom:1.5px solid #101a2e;padding:0 6px;">∇p</span><br><span style="padding:0 6px;">p</span></span></span>
+          </div>
+          <div class="card-b" style="font-size:13.5px;">链式法则的直接结果：对数的导数 = 自己分之一 × 自己的导数。</div>
+
+          <div style="display:flex;align-items:center;gap:12px;margin:16px 0;">
+            <div style="flex:1;height:1px;background:var(--line);"></div>
+            <div style="font-size:12px;font-weight:700;color:var(--ink-3);white-space:nowrap;">把分母 p 乘到另一边</div>
+            <div style="flex:1;height:1px;background:var(--line);"></div>
+          </div>
+
+          <div class="card-t"><span class="num">2</span>得到关键恒等式</div>
+          <div class="fml-c" style="margin:10px 0 0;">
+            <span class="fml big" style="background:var(--pri-l);border-color:#cfe0ff;">
+              <span class="v">∇p</span> = <span class="v">p</span> · <span class="v">∇</span> log p
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div class="arw" style="font-size:26px;">→</div>
+
+      <!-- 右：为什么有用 -->
+      <div class="col" style="flex:1.15;">
+        <div class="card hl-teal" style="padding:18px 20px;height:100%;">
+          <div class="card-t" style="color:var(--teal);">这一步为什么有用？</div>
+          <div class="card-b" style="font-size:14px;">
+            它把<span class="b">「概率 p 的导数 ∇p」</span>重新写成了<span class="b c-teal">「p 乘上某个东西」</span>。
+            一旦表达式里出现了 <span class="code">p · (…)</span> 这种结构，就可以把它<span class="b">收进期望的定义里</span>。
+          </div>
+
+          <div style="background:#f8fafd;border:1px solid var(--line);border-radius:11px;padding:14px 16px;margin-top:15px;">
+            <div style="font-size:12.5px;font-weight:800;color:var(--ink-3);letter-spacing:.05em;margin-bottom:10px;">积分形式 → 期望形式</div>
+            <div class="fml-c">
+              <span class="fml" style="font-size:17px;">
+                ∫ <span class="v">∇p</span> dx = ∫ <span class="v">p</span>·∇ log p dx = <span class="g">𝔼</span><sub>x~p</sub>[ ∇ log p ]
+              </span>
+            </div>
+          </div>
+
+          <div class="note n-teal" style="margin-top:15px;">
+            <span class="ni">💡</span>
+            <div>
+              <span class="b">为什么要换成期望？</span><br>
+              因为期望可以用 <span class="b">Monte Carlo 采样</span> 近似求解——而积分很难直接算。<br>
+              换成期望 → 就是<span class="b c-teal">为了能近似求解</span>。
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="footnote">对数求导策略 / Log-derivative trick</div>
+    <div class="pageno"></div>
+  </section>
+
+  <!-- ============ 3. Policy Gradient 回顾 ============ -->
+  <section class="slide">
+    <div class="head">
+      <div class="tag t-teal"><span class="dot"></span>上一章回顾</div>
+      <h2 class="title">Policy Gradient：让「好轨迹」出现的概率更大</h2>
+      <p class="sub">优化目标：环境给轨迹的奖励的<span class="b">期望</span>最大。轨迹出现满足概率分布 <span class="code">p<sub>θ</sub>(τ)</span>。</p>
+    </div>
+
+    <div class="row" style="gap:20px;">
+      <div class="col" style="flex:1;">
+        <div class="card hl-pri" style="padding:17px 19px;">
+          <div class="card-t"><span class="num">1</span>优化目标</div>
+          <div class="fml-c" style="margin:12px 0;">
+            <span class="fml big">J(θ) = <span class="g">𝔼</span><sub>τ~p<sub>θ</sub>(τ)</sub>[ <span class="a">R(τ)</span> ]</span>
+          </div>
+          <div class="card-b" style="font-size:13.5px;">
+            让参数 θ 控制策略，使得「跑出来的轨迹 τ 收集到的回报 R(τ)」在期望上越大越好。
+          </div>
+        </div>
+      </div>
+
+      <div class="arw">→</div>
+
+      <div class="col" style="flex:1;">
+        <div class="card hl-teal" style="padding:17px 19px;">
+          <div class="card-t"><span class="num n-teal">2</span>展开成积分再求导</div>
+          <div class="fml-c" style="margin:12px 0;">
+            <span class="fml" style="font-size:17.5px;">∇<sub>θ</sub>J(θ) = ∫ <span class="a">R(τ)</span> <span class="v">∇<sub>θ</sub></span> p<sub>θ</sub>(τ) dτ</span>
+          </div>
+          <div class="card-b" style="font-size:13.5px;">
+            期望 = 对概率密度积分。而 <span class="code">R(τ)</span> 与环境有关、<span class="b">与 θ 无关</span>，所以可以挪到求导符号外侧。
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="note n-pri" style="margin-top:20px;">
+      <span class="ni">🎯</span>
+      <div>
+        <span class="b">现在的处境：</span>我们拿到了一个梯度表达式，但它还长着 <span class="code">∫ … dτ</span> 的样子——<span class="b">积分没法直接算，也没法采样</span>。
+        下一页，就用「对数求导策略」把 <span class="b">∇<sub>θ</sub>p<sub>θ</sub>(τ)</span> 换掉。
+      </div>
+    </div>
+
+    <div style="margin-top:16px;display:flex;gap:11px;align-items:center;">
+      <div style="font-size:12.5px;font-weight:700;color:var(--ink-3);">推导进度</div>
+      <div style="flex:1;height:7px;background:#e6ecf7;border-radius:99px;overflow:hidden;">
+        <div style="width:45%;height:100%;background:linear-gradient(90deg,var(--pri),var(--pri-d));border-radius:99px;"></div>
+      </div>
+      <div style="font-size:12.5px;font-weight:700;color:var(--pri);font-family:var(--mono);">1 / 2</div>
+    </div>
+    <div class="footnote">Policy Gradient · 目标与梯度</div>
+    <div class="pageno"></div>
+  </section>
+
+  <!-- ============ 4. REINFORCE 推导 ============ -->
+  <section class="slide">
+    <div class="head">
+      <div class="tag t-amber"><span class="dot"></span>第 2 个子问题</div>
+      <h2 class="title">REINFORCE 的推导：<em>一步替换</em>，积分变期望</h2>
+      <p class="sub">把上一页的 <span class="code">∇<sub>θ</sub>p<sub>θ</sub></span> 用对数求导策略换掉，REINFORCE 就浮现出来了。</p>
+    </div>
+
+    <div class="flow" style="margin-left:4px;">
+      <div class="flow-i">
+        <div class="ft">① 代入对数求导恒等式</div>
+        <div class="fb">
+          <span class="fml bare" style="font-size:16px;">∇<sub>θ</sub>p<sub>θ</sub>(x) = p<sub>θ</sub>(x) · ∇<sub>θ</sub> log p<sub>θ</sub>(x)</span>
+        </div>
+      </div>
+      <div class="flow-i teal">
+        <div class="ft">② 梯度表达式等效变形 —— 出现 p<sub>θ</sub>(τ) 因子</div>
+        <div class="fb">
+          <span class="fml" style="font-size:17px;">∇<sub>θ</sub>J(θ) = ∫ <span class="a">R(τ)</span> <span class="g">p<sub>θ</sub>(τ)</span> ∇<sub>θ</sub> log p<sub>θ</sub>(τ) dτ</span>
+        </div>
+      </div>
+      <div class="flow-i amber">
+        <div class="ft">③ 认出期望的定义，积分写成期望</div>
+        <div class="fb">
+          <span class="fml big" style="background:var(--amber-l);border-color:#f7ddb8;font-size:19px;">
+            ∇<sub>θ</sub>J(θ) = <span class="g">𝔼</span><sub>τ~p<sub>θ</sub></sub>[ <span class="a">R(τ)</span> <span class="v">∇<sub>θ</sub></span> log p<sub>θ</sub>(τ) ]
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <div class="row" style="margin-top:18px;gap:16px;">
+      <div class="col">
+        <div class="card hl-violet" style="padding:14px 16px;">
+          <div class="card-t" style="font-size:14px;color:#5c3fd6;">和原来比，变了什么？</div>
+          <div class="card-b" style="font-size:13px;">
+            <span class="c-ink3">原来：</span><span class="code">∫ R(τ)∇p dτ</span> —— 对<span class="b">概率</span>求导，积分不可采样<br>
+            <span style="color:var(--violet);">现在：</span><span class="code">𝔼[R(τ)∇log p]</span> —— 对<span class="b">对数概率</span>求导，期望可采样
+          </div>
+        </div>
+      </div>
+      <div class="col">
+        <div class="card hl-pri" style="padding:14px 16px;">
+          <div class="card-t" style="font-size:14px;">关键洞察</div>
+          <div class="card-b" style="font-size:13px;">
+            式子里<span class="b">每一项都变成可观测的了</span>：<br>
+            <span class="code">R(τ)</span> = 跑一遍就知道奖励；<span class="code">∇log p<sub>θ</sub></span> = 网络自己就能求导。
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="footnote">REINFORCE · 推导</div>
+    <div class="pageno"></div>
+  </section>
+
+  <!-- ============ 5. REINFORCE 到底是什么 ============ -->
+  <section class="slide">
+    <div class="head">
+      <div class="tag t-teal"><span class="dot"></span>第 3 个子问题</div>
+      <h2 class="title">理解 REINFORCE：用「跑 100 条轨迹」估出梯度</h2>
+      <p class="sub">得到期望形式后，就可以用 <span class="b">Monte Carlo 采样</span> 求梯度的近似值——这就是全部秘密。</p>
+    </div>
+
+    <div class="row" style="gap:20px;">
+      <!-- 采样示意 -->
+      <div class="col" style="flex:1;">
+        <div class="card" style="padding:16px 18px;height:100%;">
+          <div class="card-t"><span class="num n-teal">①</span>用当前策略跑 100 条轨迹</div>
+          <div style="display:flex;gap:5px;flex-wrap:wrap;margin:12px 0 14px;">
+            <span style="font-family:var(--mono);font-size:11px;background:var(--teal-l);color:#076b57;padding:4px 8px;border-radius:6px;border:1px solid #bfe9df;">τ₁</span>
+            <span style="font-family:var(--mono);font-size:11px;background:var(--teal-l);color:#076b57;padding:4px 8px;border-radius:6px;border:1px solid #bfe9df;">τ₂</span>
+            <span style="font-family:var(--mono);font-size:11px;background:var(--teal-l);color:#076b57;padding:4px 8px;border-radius:6px;border:1px solid #bfe9df;">τ₃</span>
+            <span style="font-family:var(--mono);font-size:11px;color:#8b96ad;padding:4px 2px;">⋯</span>
+            <span style="font-family:var(--mono);font-size:11px;background:var(--teal-l);color:#076b57;padding:4px 8px;border-radius:6px;border:1px solid #bfe9df;">τ₁₀₀</span>
+          </div>
+          <div class="card-b" style="font-size:13.5px;">
+            每条轨迹都带回环境给的奖励 <span class="code">R(τ<sub>i</sub>)</span>。
+          </div>
+          <div style="height:1px;background:var(--line);margin:13px 0;"></div>
+          <div class="card-b" style="font-size:13.5px;">
+            <span class="b">关键：</span>τ 被采样结果<span class="b">固定</span>下来后，
+            <span class="code">p<sub>θ</sub>(τ<sub>i</sub>)</span> 就只是关于 θ 的函数 → <span class="b c-teal">可以正常求导</span>。
+          </div>
+        </div>
+      </div>
+
+      <div class="arw">→</div>
+
+      <!-- 近似公式 -->
+      <div class="col" style="flex:1.1;">
+        <div class="card hl-pri" style="padding:16px 18px;height:100%;display:flex;flex-direction:column;justify-content:center;">
+          <div class="card-t"><span class="num">②</span>取平均，作为真实梯度的估计</div>
+          <div class="fml-c" style="margin:14px 0;">
+            <span class="fml big" style="font-size:21px;background:var(--pri-l);border-color:#cfe0ff;">
+              ĝ = <span style="display:inline-block;vertical-align:middle;font-size:.85em;"><span style="border-bottom:1.5px solid #101a2e;padding:0 8px;">1</span><br><span style="padding:0 8px;">100</span></span>
+              <span class="v" style="font-size:1.15em;">Σ</span><sub>i=1</sub><sup>100</sup> <span class="a">R(τ<sub>i</sub>)</span> ∇<sub>θ</sub> log p<sub>θ</sub>(τ<sub>i</sub>)
+            </span>
+          </div>
+          <div class="card-b" style="font-size:13.5px;text-align:center;">
+            用这个式子来<span class="b">近似求解真实梯度</span>，再拿它去做梯度上升更新策略。
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-top:22px;background:linear-gradient(120deg,var(--teal),#067a68);border-radius:14px;padding:17px 24px;display:flex;align-items:center;gap:16px;">
+      <div style="font-size:26px;">🧠</div>
+      <div style="color:#fff;">
+        <div style="font-size:20px;font-weight:800;letter-spacing:.01em;">REINFORCE 本质上就是 Monte Carlo Policy Gradient</div>
+        <div style="font-size:13.5px;opacity:.88;margin-top:4px;">策略梯度 + 蒙特卡洛采样估计 = REINFORCE。没有别的魔法。</div>
+      </div>
+    </div>
+    <div class="footnote">REINFORCE · 本质</div>
+    <div class="pageno"></div>
+  </section>
+
+  <!-- ============ 6. 过渡页 ============ -->
+  <section class="slide cover" style="display:none;">
+    <div class="grid-bg"></div>
+    <div style="position:relative;padding-top:96px;">
+      <div class="tag t-amber"><span class="dot"></span>过渡页</div>
+      <h1 class="title" style="font-size:44px;margin-top:20px;">
+        主干讲完了。<br>接下来是 <span style="color:var(--amber);">3 个补充知识点</span>
+      </h1>
+      <p class="sub" style="font-size:16px;margin-top:14px;max-width:660px;">
+        它们都是从上面那条梯度公式里「抠出来的细节」，也是实际写代码时避不开的三个问题。
+      </p>
+
+      <div style="display:flex;gap:18px;margin-top:46px;">
+        <div class="card hl-amber" style="flex:1;padding:22px 20px;">
+          <div style="font-size:30px;font-family:Georgia,serif;font-weight:700;color:var(--amber);">01</div>
+          <div style="font-size:16.5px;font-weight:800;margin-top:10px;line-height:1.4;">为什么实际 REINFORCE<br>使用 Return-to-Go？</div>
+          <div style="font-size:13px;color:var(--ink-3);margin-top:8px;line-height:1.6;">每个动作的奖励，不该是一样的。</div>
+        </div>
+        <div class="card hl-rose" style="flex:1;padding:22px 20px;">
+          <div style="font-size:30px;font-family:Georgia,serif;font-weight:700;color:var(--rose);">02</div>
+          <div style="font-size:16.5px;font-weight:800;margin-top:10px;line-height:1.4;">为什么要减去<br>一个 baseline？</div>
+          <div style="font-size:13px;color:var(--ink-3);margin-top:8px;line-height:1.6;">奖励基数太大，动作之间分不出高下。</div>
+        </div>
+        <div class="card hl-violet" style="flex:1;padding:22px 20px;">
+          <div style="font-size:30px;font-family:Georgia,serif;font-weight:700;color:var(--violet);">03</div>
+          <div style="font-size:16.5px;font-weight:800;margin-top:10px;line-height:1.4;">减 baseline 后<br>为什么期望不变？</div>
+          <div style="font-size:13px;color:var(--ink-3);margin-top:8px;line-height:1.6;">数学上可以严格证明：那一项 = 0。</div>
+        </div>
+      </div>
+
+      <div class="note n-pri" style="margin-top:32px;max-width:900px;">
+        <span class="ni">🧭</span>
+        <div>为了讲清楚第 ① 个问题，我们先把梯度公式里那个难看的 <span class="code">∇log p<sub>θ</sub>(τ)</span> 展开化简一下。</div>
+      </div>
+    </div>
+    <div class="footnote">附加知识点 · 预告</div>
+    <div class="pageno"></div>
+  </section>
+
+  <!-- ============ 7. 展开化简 ============ -->
+  <section class="slide">
+    <div class="head">
+      <div class="tag t-violet"><span class="dot"></span>预备：化简梯度</div>
+      <h2 class="title">把 <em>∇ log p<sub>θ</sub>(τ)</em> 拆开：只剩策略项</h2>
+      <p class="sub">轨迹概率由「初始状态 × 各步策略 × 各步状态转移」累乘而成。取对数，累乘变累加。</p>
+    </div>
+
+    <div class="row" style="gap:20px;">
+      <div class="col" style="flex:1;">
+        <div class="card" style="padding:16px 18px;">
+          <div class="card-t">① 轨迹的概率（累乘）</div>
+          <div class="fml-c" style="margin:12px 0;">
+            <span class="fml" style="font-size:16.5px;">
+              p<sub>θ</sub>(τ) = ρ₀(s₀) <span class="v">∏</span><sub>t</sub> <span class="v">π<sub>θ</sub></span>(a<sub>t</sub>|s<sub>t</sub>) <span style="color:#9aa7bd;">P</span>(s<sub>t+1</sub>|s<sub>t</sub>,a<sub>t</sub>)
+            </span>
+          </div>
+          <div class="card-b" style="font-size:13px;">
+            <span class="c-pri">蓝</span> = 策略（与 θ 有关）　<span class="c-ink3">灰</span> = 环境（与 θ 无关）
+          </div>
+        </div>
+      </div>
+      <div class="arw">→</div>
+      <div class="col" style="flex:1;">
+        <div class="card" style="padding:16px 18px;">
+          <div class="card-t">② 取对数（累乘变累加）</div>
+          <div class="fml-c" style="margin:12px 0;">
+            <span class="fml" style="font-size:15px;">
+              log p<sub>θ</sub>(τ) = log ρ₀(s₀) + <span class="v">Σ<sub>t</sub> log π<sub>θ</sub></span>(a<sub>t</sub>|s<sub>t</sub>) + <span style="color:#9aa7bd;">Σ<sub>t</sub> log P</span>(s<sub>t+1</sub>|s<sub>t</sub>,a<sub>t</sub>)
+            </span>
+          </div>
+          <div class="card-b" style="font-size:13px;">对 θ 求导时，灰色项全是常数 → 导数为 0。</div>
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-top:16px;" class="card hl-violet">
+      <div class="card-t" style="font-size:14px;">③ 求导后：环境与初始状态项全部消失</div>
+      <div class="fml-c" style="margin:12px 0 10px;">
+        <span class="fml big" style="font-size:20px;background:var(--violet-l);border-color:#ddd4ff;">
+          ∇<sub>θ</sub> log p<sub>θ</sub>(τ) = <span style="color:var(--violet);">Σ<sub>t</sub> ∇<sub>θ</sub> log π<sub>θ</sub>(a<sub>t</sub>|s<sub>t</sub>)</span>
+        </span>
+      </div>
+      <div class="card-b" style="font-size:13.5px;text-align:center;">
+        带回目标梯度： ∇<sub>θ</sub>J(θ) = 𝔼<sub>τ~p<sub>θ</sub></sub>[ <span class="a">R(τ)</span> <span style="color:var(--violet);">Σ<sub>t</sub>∇<sub>θ</sub>log π<sub>θ</sub>(a<sub>t</sub>|s<sub>t</sub>)</span> ]
+      </div>
+    </div>
+
+    <div class="note n-pri" style="margin-top:16px;">
+      <span class="ni">✅</span>
+      <div>环境动态（状态转移）<span class="b">不含 θ</span>，所以求导后消失。梯度里只剩下<span class="b">策略自己的对数概率</span>——这是一个巨大的简化，也是后续两个知识点的基础。</div>
+    </div>
+    <div class="footnote">化简 · 只留策略项</div>
+    <div class="pageno"></div>
+  </section>
+
+  <!-- ============ 8. Return-to-Go ============ -->
+  <section class="slide">
+    <div class="head">
+      <div class="tag t-amber"><span class="dot"></span>附加问题 01</div>
+      <h2 class="title">为什么用 <em>Return-to-Go</em> 更新策略？</h2>
+      <p class="sub">一个动作该得多少奖励，应该看它<span class="b">当下 + 之后</span>的影响，而不是整条轨迹一把抓。</p>
+    </div>
+
+    <div class="card hl-rose" style="padding:15px 19px;margin-bottom:16px;">
+      <div class="card-t" style="font-size:14px;color:var(--rose);">⚠️ 问题：每个动作分到的是同一个 R(τ)</div>
+      <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+        <span class="fml" style="font-size:17px;">R(τ) <span style="color:var(--violet);">Σ<sub>t</sub>∇log π(a<sub>t</sub>|s<sub>t</sub>)</span></span>
+        <span style="font-size:13.5px;color:var(--ink-2);line-height:1.55;">
+          对<span class="b">每个 action</span> 都乘以<span class="b">整条轨迹的奖励 R(τ)</span>。<br>
+          也就是说 → 动作 a₁ 和 a₉ 拿到的奖励<span class="b c-rose">一模一样</span>，明显不合理。
+        </span>
+      </div>
+    </div>
+
+    <div class="row" style="gap:20px;">
+      <div class="col" style="flex:1.02;">
+        <div class="card hl-amber" style="padding:16px 18px;height:100%;">
+          <div class="card-t"><span class="num n-amber">解</span>度量单个动作的奖励：Return-to-Go</div>
+          <div class="card-b" style="font-size:13.5px;margin-bottom:11px;">
+            一个动作的奖励 = <span class="b">当前立刻得到的 r</span> + <span class="b">它对未来的影响</span>。用衰减因子 γ 粗略累计：
+          </div>
+          <div class="fml-c">
+            <span class="fml big" style="font-size:20px;background:var(--amber-l);border-color:#f7ddb8;">
+              G<sub>t</sub> = <span class="a">Σ</span><sub>k=t</sub><sup>T−1</sup> γ<sup>k−t</sup> r<sub>k</sub>
+            </span>
+          </div>
+          <div class="card-b" style="font-size:13px;margin-top:11px;text-align:center;">
+            γ 越靠后越小 → 越远的未来影响越弱。
+          </div>
+        </div>
+      </div>
+      <div class="col" style="flex:1;">
+        <div class="card hl-teal" style="padding:16px 18px;height:100%;">
+          <div class="card-t" style="color:var(--teal);">替换结果</div>
+          <div style="display:flex;align-items:center;justify-content:center;gap:14px;margin:14px 0;">
+            <div style="text-align:center;">
+              <div style="font-size:11.5px;color:var(--ink-3);font-weight:700;margin-bottom:6px;">原来</div>
+              <span class="fml" style="font-size:15px;background:#fdeaee;border-color:#f8cfd8;"><span class="r">R(τ)</span>∇logπ</span>
+            </div>
+            <div class="arw">→</div>
+            <div style="text-align:center;">
+              <div style="font-size:11.5px;color:var(--teal);font-weight:700;margin-bottom:6px;">现在</div>
+              <span class="fml" style="font-size:15px;background:var(--teal-l);border-color:#bfe9df;"><span class="g">G<sub>t</sub></span>∇logπ</span>
+            </div>
+          </div>
+          <div class="fml-c">
+            <span class="fml" style="font-size:16px;">∇<sub>θ</sub>J ≈ Σ<sub>t</sub> <span class="g">G<sub>t</sub></span> ∇<sub>θ</sub>log π<sub>θ</sub>(a<sub>t</sub>|s<sub>t</sub>)</span>
+          </div>
+          <div class="card-b" style="font-size:13px;margin-top:12px;">
+            后面统一用 <span class="code">G<sub>t</sub></span> 表示当前动作 a<sub>t</sub> 的奖励。
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="footnote">Return-to-Go · 未来回报</div>
+    <div class="pageno"></div>
+  </section>
+
+  <!-- ============ 9. 方差问题 ============ -->
+  <section class="slide">
+    <div class="head">
+      <div class="tag t-rose"><span class="dot"></span>问题浮现</div>
+      <h2 class="title">当前梯度表达式的问题：<em>动作之间差异变小，方差大</em></h2>
+      <p class="sub">状态本身就好时，所有动作的回报都高，动作之间的「高低」被淹没了。</p>
+    </div>
+
+    <div class="row" style="gap:20px;">
+      <div class="col" style="flex:1;">
+        <div class="card" style="padding:17px 19px;">
+          <div class="card-t"><span class="num n-rose">1</span>动作差异被缩小</div>
+          <div class="card-b" style="font-size:13px;margin-bottom:10px;">
+            同一状态 s<sub>t</sub> 下三个动作的收益：
+          </div>
+          <div style="display:flex;align-items:flex-end;gap:16px;height:190px;padding:0 10px;">
+            <div style="flex:1;text-align:center;">
+              <div style="font-family:Georgia,serif;font-size:22px;font-weight:700;color:var(--ink-2);">99</div>
+              <div style="height:118px;background:linear-gradient(180deg,#c8d3e5,#9aa7bd);border-radius:8px 8px 0 0;margin-top:6px;"></div>
+            </div>
+            <div style="flex:1;text-align:center;">
+              <div style="font-family:Georgia,serif;font-size:22px;font-weight:700;color:var(--pri);">100</div>
+              <div style="height:136px;background:linear-gradient(180deg,#5b86f5,#1e5eff);border-radius:8px 8px 0 0;margin-top:6px;"></div>
+            </div>
+            <div style="flex:1;text-align:center;">
+              <div style="font-family:Georgia,serif;font-size:22px;font-weight:700;color:var(--teal);">101</div>
+              <div style="height:154px;background:linear-gradient(180deg,#3fc9ab,#0aa88a);border-radius:8px 8px 0 0;margin-top:6px;"></div>
+            </div>
+          </div>
+          <div class="card-b" style="font-size:13px;margin-top:12px;border-top:1px solid var(--line);padding-top:11px;">
+            收益都很高，但<span class="b">相对差异被压缩</span> → 梯度更新时，没法有效增益更好的动作。
+          </div>
+        </div>
+      </div>
+
+      <div class="col" style="flex:1;">
+        <div class="card hl-rose" style="padding:17px 19px;">
+          <div class="card-t" style="color:var(--rose);"><span class="num n-rose">2</span>方差被放大</div>
+          <div class="card-b" style="font-size:13px;margin-bottom:10px;">
+            梯度里还乘了一项 <span class="code">∇<sub>θ</sub>log π</span>，于是：
+          </div>
+          <div style="display:flex;flex-direction:column;gap:9px;">
+            <div style="background:#f8fafd;border:1px solid var(--line);border-radius:9px;padding:10px 14px;font-size:13px;">
+              <span class="fml bare" style="font-size:15px;">Var(X) = 𝔼[(X − 𝔼[X])²]</span>
+            </div>
+            <div style="background:#f8fafd;border:1px solid var(--line);border-radius:9px;padding:10px 14px;font-size:13px;">
+              <span class="fml bare" style="font-size:15px;">Var[c·X] = <span class="r">c²</span> Var[X]</span>
+            </div>
+          </div>
+          <div class="note" style="margin-top:12px;font-size:13px;">
+            <span class="ni">📉</span>
+            <div>系数 c 越大，方差按<span class="b">平方</span>放大。所以——<span class="b">降低系数 G<sub>t</sub>，就能降低方差。</span></div>
+          </div>
+          <div style="background:#f8fafd;border:1px solid var(--line);border-radius:11px;padding:12px 15px;margin-top:12px;">
+            <div style="font-size:12.5px;font-weight:800;color:var(--ink-2);margin-bottom:7px;">同一组数，减去一个常数 → 差异不变</div>
+            <div style="font-size:12.5px;color:var(--ink-3);line-height:1.6;">
+              99 / 100 / 101 → 减 100 → −1 / 0 / +1<br>
+              但真实梯度里还乘了 <span class="code">∇log π</span>，<span class="b">数值被拉大，方差随之放大</span>。
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="footnote">方差分析 · 为什么需要 baseline</div>
+    <div class="pageno"></div>
+  </section>
+
+  <!-- ============ 10. Baseline ============ -->
+  <section class="slide">
+    <div class="head">
+      <div class="tag t-teal"><span class="dot"></span>附加问题 02</div>
+      <h2 class="title">解决方案：在奖励 <em>G<sub>t</sub></em> 上减去一个 baseline</h2>
+      <p class="sub">把「绝对收益」换成「相对于平均水平的收益」——这就是优势（Advantage）思想的雏形。</p>
+    </div>
+
+    <div class="row" style="gap:20px;">
+      <div class="col" style="flex:1.12;">
+        <div class="card hl-teal" style="padding:17px 19px;">
+          <div class="card-t" style="color:var(--teal);">做法：<span>G<sub>t</sub> → G<sub>t</sub> − b(s<sub>t</sub>)</span></div>
+          <div class="fml-c" style="margin:13px 0;">
+            <span class="fml big" style="font-size:19px;background:var(--teal-l);border-color:#bfe9df;">
+              ∇<sub>θ</sub>J ≈ Σ<sub>t</sub> ( <span class="g">G<sub>t</sub></span> − <span class="r">b(s<sub>t</sub>)</span> ) ∇<sub>θ</sub>log π<sub>θ</sub>(a<sub>t</sub>|s<sub>t</sub>)
+            </span>
+          </div>
+          <div class="card-b" style="font-size:13.5px;">
+            <span class="b">b(s<sub>t</sub>) 通常取 V<sup>π</sup>(s<sub>t</sub>)</span>——当前状态 s<sub>t</sub> 下采取动作的<span class="b">综合收益期望</span>（即「这个状态的平均水平」）。
+          </div>
+          <div class="note n-teal" style="margin-top:13px;font-size:13px;">
+            <span class="ni">💡</span>
+            <div>理解：<span class="b">动作的收益 G<sub>t</sub> 减去当前状态的平均收益 V<sup>π</sup>(s<sub>t</sub>)</span>。<br>
+            增益更大的动作 → 得到相对更多的梯度更新 → 概率被抬高。</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col" style="flex:.95;">
+        <div class="card" style="padding:16px 18px;">
+          <div class="card-t">效果对比：同一状态下</div>
+          <table class="t" style="margin-top:9px;">
+            <tr><th>动作</th><th>G<sub>t</sub></th><th>−V<sup>π</sup>=100</th></tr>
+            <tr><td class="k">a₁</td><td>99</td><td style="color:var(--rose);font-weight:700;">−1</td></tr>
+            <tr><td class="k">a₂</td><td>100</td><td style="color:var(--ink-3);font-weight:700;">0</td></tr>
+            <tr><td class="k">a₃</td><td>101</td><td style="color:var(--teal);font-weight:700;">+1</td></tr>
+          </table>
+          <div class="card-b" style="font-size:12.5px;margin-top:11px;line-height:1.6;">
+            <span class="c-ink3">减之前：</span>99/100/101 看不出差别<br>
+            <span class="c-teal">减之后：</span>−1 / 0 / +1 —— <span class="b">谁好谁坏一目了然</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="row" style="margin-top:16px;gap:14px;">
+      <div class="col"><div class="card" style="padding:12px 15px;border-left:4px solid var(--pri);">
+        <span style="font-size:13.5px;color:var(--ink-2);"><span class="b c-pri">好处 1：</span>相对差异被放大，更新方向更清晰</span>
+      </div></div>
+      <div class="col"><div class="card" style="padding:12px 15px;border-left:4px solid var(--teal);">
+        <span style="font-size:13.5px;color:var(--ink-2);"><span class="b c-teal">好处 2：</span>系数变小 → 梯度<span class="b">方差显著降低</span></span>
+      </div></div>
+      <div class="col"><div class="card" style="padding:12px 15px;border-left:4px solid var(--violet);">
+        <span style="font-size:13.5px;color:var(--ink-2);"><span class="b" style="color:#5c3fd6;">好处 3：</span>期望不变，方向没被改坏（见下页）</span>
+      </div></div>
+    </div>
+    <div class="footnote">Baseline · 优势思想</div>
+    <div class="pageno"></div>
+  </section>
+
+  <!-- ============ 11. 期望不变证明 ============ -->
+  <section class="slide">
+    <div class="head">
+      <div class="tag t-violet"><span class="dot"></span>附加问题 03</div>
+      <h2 class="title">为什么减 baseline，<em>梯度的期望不变</em>？</h2>
+      <p class="sub">因为含 b(s) 的那一项，期望恒等于 0。下面是一步步的证明。</p>
+    </div>
+
+    <div class="row" style="gap:22px;">
+      <div class="col" style="flex:1.28;">
+        <div class="flow">
+          <div class="flow-i">
+            <div class="ft">① 目标：证明含 b(s) 的期望为 0</div>
+            <div class="fb"><span class="fml bare" style="font-size:15px;">𝔼[ b(s) · ∇<sub>θ</sub>log π<sub>θ</sub>(a|s) ] = 0</span></div>
+          </div>
+          <div class="flow-i teal">
+            <div class="ft">② 关键：baseline 不依赖采样出的 action</div>
+            <div class="fb"><span class="fml bare" style="font-size:15px;">= b(s) Σ<sub>a</sub> π<sub>θ</sub>(a|s) ∇<sub>θ</sub>log π<sub>θ</sub>(a|s)</span><br>
+              <span style="font-size:12.5px;">b(s) 与 a 无关，可以提到求和符号外面。</span></div>
+          </div>
+          <div class="flow-i amber">
+            <div class="ft">③ 用对数求导策略反向替换</div>
+            <div class="fb"><span class="fml bare" style="font-size:15px;">= b(s) Σ<sub>a</sub> ∇<sub>θ</sub> π<sub>θ</sub>(a|s)</span></div>
+          </div>
+          <div class="flow-i amber">
+            <div class="ft">④ 梯度移到求和符号外</div>
+            <div class="fb"><span class="fml bare" style="font-size:15px;">= b(s) ∇<sub>θ</sub> Σ<sub>a</sub> π<sub>θ</sub>(a|s)</span></div>
+          </div>
+          <div class="flow-i">
+            <div class="ft">⑤ 概率之和恒为 1，常数的导数为 0</div>
+            <div class="fb"><span class="fml bare" style="font-size:15px;">Σ<sub>a</sub> π<sub>θ</sub>(a|s) = 1　⟹　∇<sub>θ</sub>(1) = 0</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col" style="flex:.92;">
+        <div class="card hl-violet" style="padding:16px 18px;">
+          <div class="card-t" style="color:#5c3fd6;">每一步在干什么</div>
+          <table class="t" style="margin-top:9px;">
+            <tr><th>步骤</th><th>动作</th></tr>
+            <tr><td class="k">②</td><td>展开期望 → b(s) 提出</td></tr>
+            <tr><td class="k">③</td><td>∇log π 换回 ∇π</td></tr>
+            <tr><td class="k">④</td><td>求导符号外移</td></tr>
+            <tr><td class="k">⑤</td><td>概率和为 1 → 导数为 0</td></tr>
+          </table>
+        </div>
+
+        <div style="margin-top:14px;background:linear-gradient(120deg,var(--violet),#5a3fd0);border-radius:13px;padding:16px 18px;color:#fff;">
+          <div style="font-size:12.5px;opacity:.85;font-weight:700;letter-spacing:.05em;">得证</div>
+          <div class="fml-c" style="margin:8px 0 6px;">
+            <span style="font-family:Georgia,serif;font-size:19px;">𝔼[ b(s) ∇<sub>θ</sub>log π<sub>θ</sub>(a|s) ] = 0</span>
+          </div>
+          <div style="font-size:12.5px;opacity:.9;line-height:1.6;">
+            减去 baseline <span class="b">不改变梯度的期望方向</span>，只降低方差 → 免费的性能提升。
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="footnote">证明 · 期望不变性</div>
+    <div class="pageno"></div>
+  </section>
+
+  <!-- ============ 12. 总结 ============ -->
+  <section class="slide cover">
+    <div class="grid-bg"></div>
+    <div style="position:relative;">
+      <div class="tag"><span class="dot"></span>总结</div>
+      <h2 class="title" style="font-size:33px;margin-top:13px;position:relative;z-index:2;">一句话回顾这一章</h2>
+
+      <div class="row" style="gap:16px;margin-top:24px;">
+        <div class="col">
+          <div class="card hl-pri" style="padding:16px 17px;height:100%;">
+            <div class="card-t" style="font-size:13.5px;"><span class="num">1</span>对数求导策略是什么？</div>
+            <div class="card-b" style="font-size:13px;">
+              一条等式变换 <span class="code">∇log p = ∇p / p</span>。它把概率分布 p <span class="b">重新引入</span>梯度表达式，从而实现<span class="b c-pri">积分形式与期望形式的等效变换</span>——这样才能用 Monte Carlo 采样近似求梯度。
+            </div>
+          </div>
+        </div>
+        <div class="col">
+          <div class="card hl-teal" style="padding:16px 17px;height:100%;">
+            <div class="card-t" style="font-size:13.5px;color:var(--teal);"><span class="num n-teal">2</span>REINFORCE 怎么推出来的？</div>
+            <div class="card-b" style="font-size:13px;">
+              使用对数求导策略，把 Policy Gradient 的<span class="b">梯度积分表达式</span>，转换为<span class="b c-teal">期望表达式</span>即可。
+            </div>
+          </div>
+        </div>
+        <div class="col">
+          <div class="card hl-amber" style="padding:16px 17px;height:100%;">
+            <div class="card-t" style="font-size:13.5px;color:#b96a10;"><span class="num n-amber">3</span>REINFORCE 到底是什么？</div>
+            <div class="card-b" style="font-size:13px;">
+              本质上就是 <span class="b c-amber">Monte Carlo Policy Gradient</span>。策略梯度 + 蒙特卡洛采样估计。
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style="height:1px;background:var(--line);margin:20px 0 18px;"></div>
+
+      <div style="font-size:14px;font-weight:800;color:var(--ink-2);margin-bottom:12px;">三个补充知识点</div>
+      <div class="row" style="gap:16px;">
+        <div class="col">
+          <div class="card" style="padding:14px 16px;border-top:3px solid var(--amber);height:100%;">
+            <div class="card-t" style="font-size:13.5px;">① 为什么用 Return-to-Go？</div>
+            <div class="card-b" style="font-size:12.5px;">
+              原始公式用<span class="b">整条轨迹的奖励</span>奖励每一次动作，但每个动作应得的奖励不同。一个动作的奖励体现在<span class="b">当前及之后</span>，所以用未来回报 <span class="code">G<sub>t</sub></span> 来度量。
+            </div>
+          </div>
+        </div>
+        <div class="col">
+          <div class="card" style="padding:14px 16px;border-top:3px solid var(--rose);height:100%;">
+            <div class="card-t" style="font-size:13.5px;">② 为什么要减 baseline？</div>
+            <div class="card-b" style="font-size:12.5px;">
+              同一状态下动作收益<span class="b">基数大</span>，动作间差异体现不出来。减去基数（通常取 <span class="code">V<sup>π</sup>(s<sub>t</sub>)</span>）能扩大相对差异；且因额外乘了 ∇log π，减完后<span class="b c-rose">方差变小</span>。
+            </div>
+          </div>
+        </div>
+        <div class="col">
+          <div class="card" style="padding:14px 16px;border-top:3px solid var(--violet);height:100%;">
+            <div class="card-t" style="font-size:13.5px;">③ 为什么期望不变？</div>
+            <div class="card-b" style="font-size:12.5px;">
+              因为 <span class="code">b(s<sub>t</sub>)</span> <span class="b">与动作 a<sub>t</sub> 无关</span>，可证明 <span class="code">b(s)Σ<sub>a</sub>∇<sub>θ</sub>π<sub>θ</sub>(a|s)</span> 的期望为 0。
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-top:22px;text-align:center;font-size:15px;color:var(--ink-3);letter-spacing:.02em;">
+        下一步 → <span class="b c-pri">PPO</span>：在 REINFORCE 的基础上，约束策略更新幅度
+      </div>
+    </div>
+    <div class="footnote">REINFORCE · 小结</div>
+    <div class="pageno"></div>
+  </section>
+</div>
+
+<div class="hint">← → 或空格 翻页</div>
+
+<script>
+(function(){
+  var slides=[].slice.call(document.querySelectorAll('.slide')),total=slides.length,cur=0;
+  var counter=document.createElement('div'); // 不用 fixed 页码，避免压页脚
+  var progress=document.getElementById('bar');
+  function fit(){
+    var s=Math.min(window.innerWidth/1280,window.innerHeight/720);
+    var d=document.getElementById('deck');
+    d.style.transform='scale('+s+')';
+  }
+  function show(i){
+    cur=Math.max(0,Math.min(total-1,i));
+    slides.forEach(function(x,n){
+      x.classList.toggle('active',n===cur);
+      if(n===cur){x.style.display='block';}else{x.style.display='none';}
+      var p=x.querySelector('.pageno');
+      if(p){p.textContent=(n+1)+' / '+total;}
+    });
+    progress.style.width=((cur+1)/total*100)+'%';
+    try{location.hash=String(cur+1);}catch(e){}
+  }
+  function next(){show(cur+1);}
+  function prev(){show(cur-1);}
+  window.addEventListener('keydown',function(e){
+    if(['ArrowRight','ArrowDown','PageDown',' '].indexOf(e.key)>=0){e.preventDefault();next();}
+    else if(['ArrowLeft','ArrowUp','PageUp'].indexOf(e.key)>=0){e.preventDefault();prev();}
+    else if(e.key==='Home'){e.preventDefault();show(0);}
+    else if(e.key==='End'){e.preventDefault();show(total-1);}
+  });
+  window.addEventListener('click',function(e){ if(e.clientX>window.innerWidth*0.5){next();}else{prev();} });
+  window.addEventListener('resize',fit);
+  var target=parseInt((location.hash||'').replace('#',''),10);
+  fit();
+  show((target&&target>=1&&target<=total)?target-1:0);
+})();
+</script>
+</body>
+</html>
