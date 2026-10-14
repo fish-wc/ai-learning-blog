@@ -13,7 +13,7 @@ Milvus 是云原生向量数据库，**计算与存储分离**。整张图从左
 > - **DML**：插入、删除向量数据（写数据）
 > - **DQL**：向量相似度搜索、查询（读数据）
 
-![milvus向量数据库](/docs/interview/appendix/resume/fig/milvus_architecture_2_6.png)
+![milvus向量数据库](./figs/milvus_architecture.png)
 
 ## 1. Client SDK + Proxy（最左侧：接入层）
 - **Client SDK**：应用程序入口，业务代码通过SDK发送向量写入/向量检索请求。

@@ -23,7 +23,9 @@ export default defineConfig({
     /\.hpp$/,
     /\.hxx$/,
     // rf/ppo.md 指向"多臂老虎机"说明页，目标尚未创建；建好该页面后可移除此条
-    /ppo\/multi-armed/
+    /ppo\/multi-armed/,
+    // rf/index.md 链接到 PPT 的 .html 导出，VitePress 不把 .html 当页面；暂忽略，后续如需在站点打开请把该 html 移到 public/ 下用绝对路径链接
+    /Policy_Gradient_%E5%88%B0%E5%BA%95%E5%9C%A8%E4%BC%98%E5%8C%96%E4%BB%80%E4%B9%88/
   ],
 
   themeConfig: {

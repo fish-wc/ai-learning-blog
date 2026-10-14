@@ -15,7 +15,7 @@ math: true
 
 # 1. REINFORCE 到底是什么？
 
-前面[Policy Gradient](/docs/rf/appendix/PPO/Policy_Gradient.md)得到：
+前面[Policy Gradient](./Policy_Gradient.md)得到：
 
 $$
 \nabla_\theta J
@@ -123,7 +123,7 @@ G_t
 }
 $$
 
-这里假设每一个动作$a_t$的奖励都能够被环境量化出来。详细解释在[Return-to-go](./ppo/Return-to-go)。
+这里假设每一个动作$a_t$的奖励都能够被环境量化出来。详细解释在[Return-to-go](../../ppo/Return-to-go)。
 
 ---
 

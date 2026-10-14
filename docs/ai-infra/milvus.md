@@ -62,13 +62,13 @@ target: [
 
 
 
-## 3. Milvus 整体架构:为什么它是"[云原生](/docs/interview/appendix/resume/云原生.md)"的向量数据库
+## 3. Milvus 整体架构:为什么它是"[云原生](./appendix/vector_db/milvus/云原生.md)"的向量数据库
 
 Milvus 从 2.0 版本开始采用了**存储计算分离**的云原生架构,核心思路是把"接入层""计算层""存储层"拆开,每一层都可以独立扩缩容。简化理解可以分成四层:
 
-![milvus向量数据库](/docs/interview/appendix/resume/fig/milvus_architecture_2_6.png)
+![milvus向量数据库](./appendix/vector_db/milvus/figs/milvus_architecture.png)
 
-[几个关键设计点](/docs/interview/appendix/resume/milvus_arch.md):
+[几个关键设计点](./appendix/vector_db/milvus/milvus_arch.md):
 
 - **日志即数据(Log as Data)**:写入请求先进入消息队列(Pulsar/Kafka),再由 Data Node 消费落盘到对象存储,这样天然具备了持久化和可回放能力,也是分布式一致性的基础;
 - **计算与存储分离**:Query Node 只负责"算",数据本身存在对象存储里,这意味着计算节点可以无状态地扩缩容,故障恢复也更快;
@@ -203,29 +203,29 @@ Jégou, H., Douze, M., & Schmid, C. "Product Quantization for Nearest Neighbor S
 
 ## 术语表 terms
 
-**RTT** : [Round-Trip Time](/docs/ai-infra/appendix/vector_db/milvus/RTT.md)，往返时间。指数据包从发送端发出，抵达接收端，再携带**应答**返回发送端的总网络耗时，单位通常为ms。Woodpecker访问远端对象存储存在RTT开销，因此采用批量写入减少网络请求次数，降低整体写入延迟。
+**RTT** : [Round-Trip Time](./appendix/vector_db/milvus/RTT.md)，往返时间。指数据包从发送端发出，抵达接收端，再携带**应答**返回发送端的总网络耗时，单位通常为ms。Woodpecker访问远端对象存储存在RTT开销，因此采用批量写入减少网络请求次数，降低整体写入延迟。
 
 
-**MemoryBuffer** ：[Woodpecker内嵌模式使用的内存缓冲区](/docs/ai-infra/appendix/vector_db/milvus/MemoryBuffer&QuorumBuffer.md)。写入数据先暂存在单机内存，攒批后一次性上传对象存储。只有数据成功写入对象存储，才返回写入确认。若节点宕机，内存中尚未刷入对象存储的数据会丢失。
+**MemoryBuffer** ：[Woodpecker内嵌模式使用的内存缓冲区](./appendix/vector_db/milvus/MemoryBuffer&QuorumBuffer.md)。写入数据先暂存在单机内存，攒批后一次性上传对象存储。只有数据成功写入对象存储，才返回写入确认。若节点宕机，内存中尚未刷入对象存储的数据会丢失。
 
-**QuorumBuffer** ：[Woodpecker独立服务模式的仲裁内存缓冲区](/docs/ai-infra/appendix/vector_db/milvus/MemoryBuffer&QuorumBuffer.md)。基于Raft协议，数据同步至多节点内存副本；当多数（quorum）节点内存写入成功，即向客户端返回写入成功，后台异步持久化到对象存储。单节点故障不会丢失已确认写入的数据，写入延迟更低，需要多节点集群支撑。
+**QuorumBuffer** ：[Woodpecker独立服务模式的仲裁内存缓冲区](./appendix/vector_db/milvus/MemoryBuffer&QuorumBuffer.md)。基于Raft协议，数据同步至多节点内存副本；当多数（quorum）节点内存写入成功，即向客户端返回写入成功，后台异步持久化到对象存储。单节点故障不会丢失已确认写入的数据，写入延迟更低，需要多节点集群支撑。
 
-**Raft一致性协议**：[Raft是分布式一致性算法，用于保证集群多节点数据一致，可容忍少量节点故障](/docs/ai-infra/appendix/vector_db/milvus/Raft.md)。拆分为三大核心机制：Leader选举、日志复制、安全性。集群节点有三种状态：Leader、Follower、Candidate。依靠任期(Term)和多数派(Quorum)仲裁机制：写请求需要复制到半数以上节点确认，才算提交成功。
+**Raft一致性协议**：[Raft是分布式一致性算法，用于保证集群多节点数据一致，可容忍少量节点故障](./appendix/vector_db/milvus/Raft.md)。拆分为三大核心机制：Leader选举、日志复制、安全性。集群节点有三种状态：Leader、Follower、Candidate。依靠任期(Term)和多数派(Quorum)仲裁机制：写请求需要复制到半数以上节点确认，才算提交成功。
 
-**Remote Procedure Call，远程过程调用**：[是一种通信机制，允许程序像调用本地函数一样调用远端机器上的服务函数，屏蔽底层网络通信细节](/docs/ai-infra/appendix/vector_db/milvus/RPC.md)。Milvus集群内部节点之间通信采用gRPC（基于Protobuf二进制序列化，性能高）。Raft协议中节点间投票、日志复制消息也基于RPC实现。
+**Remote Procedure Call，远程过程调用**：[是一种通信机制，允许程序像调用本地函数一样调用远端机器上的服务函数，屏蔽底层网络通信细节](./appendix/vector_db/milvus/RPC.md)。Milvus集群内部节点之间通信采用gRPC（基于Protobuf二进制序列化，性能高）。Raft协议中节点间投票、日志复制消息也基于RPC实现。
 
-**Woodpecker 的零磁盘架构 Zero-Disk** ： [Woodpecker 本身不使用节点本地磁盘持久化日志数据，日志直接写入远端对象存储（MinIO/S3），本地磁盘只做临时buffer缓存，不需要用来永久保存日志](/docs/ai-infra/appendix/vector_db/milvus/磁盘架构.md)。
-
-
-**墓碑**：[墓碑就是逻辑删除标记](/docs/ai-infra/appendix/vector_db/milvus/墓碑.md)。删除向量时，不会直接抹掉对象存储里原始向量，而是单独记录一条「这个主键已经被删」的标记，这个标记就叫 Tombstone（墓碑），Milvus里存放在Delta Log增量删除日志里。查询阶段过滤掉标记数据；Compaction阶段永久清理。
+**Woodpecker 的零磁盘架构 Zero-Disk** ： [Woodpecker 本身不使用节点本地磁盘持久化日志数据，日志直接写入远端对象存储（MinIO/S3），本地磁盘只做临时buffer缓存，不需要用来永久保存日志](./appendix/vector_db/milvus/磁盘架构.md)。
 
 
-**云原生**：[云原生是一套架构理念与技术栈](/docs/ai-infra/appendix/vector_db/milvus/云原生.md)，应用从设计之初就面向云环境（公有云/私有云/混合云）开发、部署、运维，充分利用云的弹性、分布式能力，而不是把传统单机应用简单搬到云上。四大核心技术，容器，容器编排，微服务，DevOps+持续交付（CI/CD）。
-
-**DevOps, Development & Operations**：[开发（Dev）+运维（Ops）](/docs/ai-infra/appendix/vector_db/milvus/DevOps.md)，不是一个工具，是一套**文化、流程、工程方法论**，目标是打通**开发团队和运维团队**的壁垒，让软件**更快、更稳定、更频繁地交付上线**。
+**墓碑**：[墓碑就是逻辑删除标记](./appendix/vector_db/milvus/墓碑.md)。删除向量时，不会直接抹掉对象存储里原始向量，而是单独记录一条「这个主键已经被删」的标记，这个标记就叫 Tombstone（墓碑），Milvus里存放在Delta Log增量删除日志里。查询阶段过滤掉标记数据；Compaction阶段永久清理。
 
 
-**CNCF，Cloud Native Computing Foundation（云原生计算基金会）**：[隶属于Linux基金会，负责托管、孵化云原生开源项目](/docs/ai-infra/appendix/vector_db/milvus/CNCF.md)，项目分为沙盒、孵化、毕业三个阶段。Milvus、K8s、etcd均为CNCF毕业项目。
+**云原生**：[云原生是一套架构理念与技术栈](./appendix/vector_db/milvus/云原生.md)，应用从设计之初就面向云环境（公有云/私有云/混合云）开发、部署、运维，充分利用云的弹性、分布式能力，而不是把传统单机应用简单搬到云上。四大核心技术，容器，容器编排，微服务，DevOps+持续交付（CI/CD）。
+
+**DevOps, Development & Operations**：[开发（Dev）+运维（Ops）](./appendix/vector_db/milvus/DevOps.md)，不是一个工具，是一套**文化、流程、工程方法论**，目标是打通**开发团队和运维团队**的壁垒，让软件**更快、更稳定、更频繁地交付上线**。
 
 
-**分布式 KV 存储**：[多机器组成的键值数据库](/docs/ai-infra/appendix/vector_db/milvus/分布式KV存储.md)，**可靠存取少量元数据、配置信息**，etcd 就是最典型的一款。
+**CNCF，Cloud Native Computing Foundation（云原生计算基金会）**：[隶属于Linux基金会，负责托管、孵化云原生开源项目](./appendix/vector_db/milvus/CNCF.md)，项目分为沙盒、孵化、毕业三个阶段。Milvus、K8s、etcd均为CNCF毕业项目。
+
+
+**分布式 KV 存储**：[多机器组成的键值数据库](./appendix/vector_db/milvus/分布式KV存储.md)，**可靠存取少量元数据、配置信息**，etcd 就是最典型的一款。

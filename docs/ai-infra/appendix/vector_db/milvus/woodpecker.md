@@ -9,7 +9,7 @@ tags: ["向量数据库", "Milvus","Woodpecker"]
 # Woodpecker（啄木鸟）
 一句话：**Milvus 自研的云原生WAL（预写日志）组件，同时充当集群内部消息流，Milvus 2.6可选，Milvus3.x默认启用，用来替代Kafka/Pulsar**
 
-![架构](/docs\ai-infra\appendix\vector_db\milvus\figs\woodpecker.jpeg)
+![架构](./figs/woodpecker.jpeg)
 
 ## 核心设计亮点：零磁盘架构（Zero-Disk）
 - 日志主体**直接写入对象存储（S3/MinIO）**，不需要依赖本地磁盘持久化日志
