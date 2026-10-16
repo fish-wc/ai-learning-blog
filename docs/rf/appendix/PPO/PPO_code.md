@@ -1,3 +1,13 @@
+---
+title: "从经典 PPO 到 LLM PPO：读懂五个核心变量、KL 惩罚、Flatten 与 Token 对齐?"
+date: 2026-10-15
+categories:
+  - Reinforcement Learning
+tags:
+  - PPO
+math: true
+---
+
 # 从经典 PPO 到 LLM PPO：读懂五个核心变量、KL 惩罚、Flatten 与 Token 对齐
 
 > **系列：强化学习与大模型后训练学习笔记**
