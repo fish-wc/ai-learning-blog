@@ -1,0 +1,40 @@
+# verl/learning/sft/code/2_config_system/config.yaml
+#
+# 【新增·模块1】配置默认值文件
+# 对应 verl 的 verl/trainer/config/sft_trainer_engine.yaml。
+# 用法: python train.py --config config.yaml [key.path=value ...]
+#   例: python train.py --config config.yaml data.max_train_samples=200 trainer.epochs=1
+# 不传 --config 时, train.py 默认读同目录的 config.yaml。
+
+model:
+  path: /home/zzy/.cache/modelscope/hub/models/Qwen/Qwen2___5-0___5B-Instruct
+  trust_remote_code: true
+  dtype: bfloat16
+
+data:
+  train_file: /home/zzy/verl/learning/sft/data/train.parquet
+  test_file: /home/zzy/verl/learning/sft/data/test.parquet
+  max_length: 512
+  max_train_samples: 1000   # 取子集加速, -1=全部
+
+optim:
+  lr: 1.0e-4
+  weight_decay: 0.01
+  betas: [0.9, 0.999]
+  warmup_steps: 10
+  max_grad_norm: 1.0
+  lr_scheduler_type: cosine
+
+trainer:
+  micro_batch_size: 8
+  grad_accum_steps: 4        # 等效 batch = micro * accum
+  epochs: 2
+  seed: 42
+  bf16: true
+  output_dir: outputs/checkpoints/sft-qwen0.5b-gsm8k
+  log_every: 5
+  save_model: true           # 验证配置时可设 false 省磁盘
+  # 【新增·模块2】实验追踪: project/experiment 给日志归档命名, logger 指定后端列表
+  project_name: gsm8k-sft
+  experiment_name: qwen0.5b-sft
+  logger: [console, file]     # 对应 verl trainer.logger, 可加 tensorboard 等
