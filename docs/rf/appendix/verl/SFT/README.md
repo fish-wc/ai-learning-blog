@@ -65,11 +65,13 @@ labels: -100 -100 ... -100               -100 ...           -100      回答的t
 - **加什么**：用 dataclass / OmegaConf(Hydra) 定义配置 schema，支持 yaml 组合覆盖。
   比如把 `model / data / optim / trainer` 拆成几块 yaml，`defaults` 组合。
 - **verl 对应**：`verl/trainer/config/sft_trainer_engine.yaml` + `verl/utils/config.py` 的 `omega_conf_to_dataclass`。
+- ✅ **已实现** → `code/2_config_system/`（用 dataclass + PyYAML + CLI 覆盖实现配置系统本质；环境无 hydra/omegaconf，故未用 hydra，注释里对照说明了 hydra 额外提供组合/插值/multirun）。验证：覆盖生效、配置驱动训练跑通。
 
 #### 模块 2：日志与实验追踪
 - **解决什么问题**：v0 只 `print` loss，跑完就没了，没法回看曲线、没法对比多次实验。
 - **加什么**：抽象一个 `Tracking` 类，把指标推到 console / wandb / tensorboard。
 - **verl 对应**：`verl/utils/tracking.py`，`sft_trainer.py` 里 `tracking.log(data=metrics, step=...)`。
+- ✅ **已实现** → `code/3_tracking/`（`tracking.py` 实现 console + file(jsonl) 后端，接口与 verl 一致）。验证：指标落 jsonl 文件可回看，含真实 grad_norm，见 `code/3_tracking/outputs/logs/`。
 
 ---
 
@@ -79,6 +81,7 @@ labels: -100 -100 ... -100               -100 ...           -100      回答的t
 - **解决什么问题**：反向传播要存所有中间激活，模型一大显存就爆。v0 没开，0.5B 还行，3B+ 就吃紧。
 - **加什么**：`model.gradient_checkpointing_enable()`，用重算换显存（省激活、多花一点时间）。
 - **verl 对应**：`verl/trainer/config/model/hf_model.yaml` 的 `enable_gradient_checkpointing`。
+- ✅ **已实现** → `code/4_grad_checkpoint/`（`config.py` 加 `enable_gradient_checkpointing` 字段，`train.py` 模型加载后调 `gradient_checkpointing_enable() + enable_input_require_grads()`）。验证：loss 0.609→0.332 与模块2 一致（重算路径数学等价），见 `code/4_grad_checkpoint/outputs/logs/`。
 
 #### 模块 4：remove_padding / 嵌套张量 (Nested Jagged Tensor)
 - **解决什么问题**：v0 用**右填充**把一个 batch 拉到等长。如果 batch 里有 1 条 500 token + 7 条 50 token，
@@ -87,6 +90,7 @@ labels: -100 -100 ... -100               -100 ...           -100      回答的t
   不做任何 padding；attention 走 `flash_attn_varlen` 按真实长度算。
 - **verl 对应**：`verl/utils/dataset/dataset_utils.py` 的 `SFTTensorCollator.collate_variable_batch`；
   引擎里 `prepare_model_inputs` 对 `.values()` 拍平。**这是 verl 默认 SFT 模式(`pad_mode: no_padding`)**。
+- ✅ **已实现** → `code/5_remove_padding/`（`dataset.py` 新增 `make_packing_collator`：拼成 `(1,T)` + `position_ids` 每样本重置 + 4D 块对角因果掩码；本环境无 flash_attn，退用 4D 掩码物化 O(T²) 但 0.5B/短序列够用，数学等价于 verl 的 `no_padding` 路径）。验证：loss 0.607→0.331 与右填充(0.609→0.332)一致 → 打包等价性通过；开发期 `/tmp` 隔离性 de-risk 测得跨样本 logits diff=0.00e+00，见 `code/5_remove_padding/outputs/logs/`。
 
 #### 模块 5：动态 batch (max_token_len_per_gpu)
 - **解决什么问题**：固定 `batch_size` 时：短样本 batch 浪费额度，长样本 batch 可能 OOM。
@@ -94,6 +98,7 @@ labels: -100 -100 ... -100               -100 ...           -100      回答的t
 - **加什么**：按 `max_token_len_per_gpu` 动态决定每步塞多少条（token 总数守恒），配 `use_dynamic_bsz`。
 - **verl 对应**：`sft_trainer_engine.yaml` 的 `data.use_dynamic_bsz` / `data.max_token_len_per_gpu`；
   引擎 `prepare_micro_batches` 里的切分逻辑。
+- ✅ **已实现** → `code/6_dynamic_bsz/`（`dataset.py` 新增 `TokenBudgetBatchSampler` 按贪心累积 token 到预算即切 batch，`SFTDataset` 改预 tokenize+缓存以暴露 `lengths`；`train.py` packing 模式下用 `batch_sampler=` 取代固定 `micro_batch_size`）。验证：实测每批样本数 7-11 不等但 token 总数恒贴 2048 预算；loss 0.595→0.351，见 `code/6_dynamic_bsz/outputs/logs/`。
 
 #### 模块 6：手算 log-prob + 统一 sft_loss
 - **解决什么问题**：v0 直接 `model(..., labels=).loss`，简单但和 RL/PPO 的 loss 路径完全分叉，
@@ -102,6 +107,7 @@ labels: -100 -100 ... -100               -100 ...           -100      回答的t
   再 `sft_loss = -masked_sum(log_prob, 左移的loss_mask) / batch_num_tokens`。
 - **verl 对应**：`verl/workers/utils/losses.py` 的 `sft_loss`；`verl/utils/torch_functional.py` 的 `logprobs_from_logits`。
   > 这一步是把 SFT 和 RL 的"actor 更新"统一成同一个接口，是 verl 设计的关键。
+- ✅ **已实现** → `code/7_manual_loss/`（新建 `loss.py`：`logprobs_from_logits` 用 logsumexp 融合省显存 + `sft_loss` 做 shift+mask 加权；`dataset.py` 把 `labels`(-100) 全量换成 `loss_mask`(0/1)；`train.py` 不再传 labels，用 `out.logits` 手算 loss）。验证：同一前向上 `sft_loss` 与 `F.cross_entropy` 逐位一致（diff=0.00e+00）；训练 loss 0.595→0.354，见 `code/7_manual_loss/outputs/logs/`。**踩坑记录**：`loss_mask.sum()` 不能在 bf16 里做（357 会舍入成 356），改 float32 后等价性才成立。
 
 ---
 

@@ -1,4 +1,3 @@
-# Copyright 2024 Bytedance Ltd. and/or its affiliates (minimal-learning edition)
 """
 SFT 数据集 —— verl/learning/sft/dataset.py
 

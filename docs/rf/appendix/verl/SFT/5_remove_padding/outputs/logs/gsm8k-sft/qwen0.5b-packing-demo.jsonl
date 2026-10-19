@@ -1,0 +1,6 @@
+{"step": 1, "ts": "2026-10-19T15:18:40", "data": {"train/loss": 0.6074329614639282, "train/lr": 1e-05, "train/grad_norm": 23.5, "train/epoch": 0.0}}
+{"step": 2, "ts": "2026-10-19T15:18:41", "data": {"train/loss": 0.6350820660591125, "train/lr": 2e-05, "train/grad_norm": 23.125, "train/epoch": 0.0}}
+{"step": 3, "ts": "2026-10-19T15:18:42", "data": {"train/loss": 0.541588544845581, "train/lr": 3e-05, "train/grad_norm": 17.25, "train/epoch": 0.0}}
+{"step": 4, "ts": "2026-10-19T15:18:43", "data": {"train/loss": 0.5089309811592102, "train/lr": 4e-05, "train/grad_norm": 8.5, "train/epoch": 0.0}}
+{"step": 5, "ts": "2026-10-19T15:18:44", "data": {"train/loss": 0.4920003414154053, "train/lr": 5e-05, "train/grad_norm": 6.28125, "train/epoch": 0.0}}
+{"step": 6, "ts": "2026-10-19T15:18:45", "data": {"train/loss": 0.3313455879688263, "train/lr": 6e-05, "train/grad_norm": 6.96875, "train/epoch": 0.0}}
