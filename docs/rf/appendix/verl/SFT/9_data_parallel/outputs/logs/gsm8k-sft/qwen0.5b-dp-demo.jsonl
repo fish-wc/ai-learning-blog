@@ -1,0 +1,5 @@
+{"step": 1, "ts": "2026-10-28T13:07:22", "data": {"train/loss": 0.581669054533306, "train/lr": 1e-05, "train/grad_norm": 23.5, "train/epoch": 0.0, "train/global_tokens": 4256.0}}
+{"step": 2, "ts": "2026-10-28T13:07:23", "data": {"train/loss": 0.596634955580923, "train/lr": 2e-05, "train/grad_norm": 18.875, "train/epoch": 0.0, "train/global_tokens": 4339.0}}
+{"step": 3, "ts": "2026-10-28T13:07:24", "data": {"train/loss": 0.5075811937360031, "train/lr": 3e-05, "train/grad_norm": 14.5625, "train/epoch": 0.0, "train/global_tokens": 4242.0}}
+{"step": 4, "ts": "2026-10-28T13:07:25", "data": {"train/loss": 0.412599425827137, "train/lr": 4e-05, "train/grad_norm": 9.0, "train/epoch": 0.0, "train/global_tokens": 4001.0}}
+{"step": 5, "ts": "2026-10-28T13:07:26", "data": {"train/loss": 0.46658889243325685, "train/lr": 5e-05, "train/grad_norm": 27.5, "train/epoch": 0.0, "train/global_tokens": 4139.0}}

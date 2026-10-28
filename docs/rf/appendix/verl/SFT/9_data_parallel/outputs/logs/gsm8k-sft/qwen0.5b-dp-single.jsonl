@@ -1,0 +1,12 @@
+{"step": 1, "ts": "2026-10-28T12:48:33", "data": {"train/loss": 0.619061763702877, "train/lr": 1e-05, "train/grad_norm": 22.5, "train/epoch": 0.0, "train/global_tokens": 2205.0}}
+{"step": 2, "ts": "2026-10-28T12:48:34", "data": {"train/loss": 0.5907918444004427, "train/lr": 2e-05, "train/grad_norm": 19.75, "train/epoch": 0.0, "train/global_tokens": 2174.0}}
+{"step": 3, "ts": "2026-10-28T12:48:34", "data": {"train/loss": 0.5216490394429186, "train/lr": 3e-05, "train/grad_norm": 15.3125, "train/epoch": 0.0, "train/global_tokens": 2105.0}}
+{"step": 4, "ts": "2026-10-28T12:48:35", "data": {"train/loss": 0.3736634372679655, "train/lr": 4e-05, "train/grad_norm": 10.875, "train/epoch": 0.0, "train/global_tokens": 1936.0}}
+{"step": 5, "ts": "2026-10-28T12:48:35", "data": {"train/loss": 0.45842817449637213, "train/lr": 5e-05, "train/grad_norm": 27.75, "train/epoch": 0.0, "train/global_tokens": 2119.0}}
+{"step": 6, "ts": "2026-10-28T12:48:36", "data": {"train/loss": 0.4902735143859111, "train/lr": 6e-05, "train/grad_norm": 9.8125, "train/epoch": 0.0, "train/global_tokens": 2191.0}}
+{"step": 7, "ts": "2026-10-28T12:48:36", "data": {"train/loss": 0.3677809665179994, "train/lr": 7e-05, "train/grad_norm": 7.875, "train/epoch": 0.0, "train/global_tokens": 1961.0}}
+{"step": 8, "ts": "2026-10-28T12:48:37", "data": {"train/loss": 0.5403899653128609, "train/lr": 8e-05, "train/grad_norm": 9.25, "train/epoch": 0.0, "train/global_tokens": 2165.0}}
+{"step": 9, "ts": "2026-10-28T12:48:37", "data": {"train/loss": 0.530460055988974, "train/lr": 9e-05, "train/grad_norm": 10.9375, "train/epoch": 0.0, "train/global_tokens": 2137.0}}
+{"step": 10, "ts": "2026-10-28T12:48:38", "data": {"train/loss": 0.7050279963680387, "train/lr": 0.0001, "train/grad_norm": 19.75, "train/epoch": 0.0, "train/global_tokens": 2065.0}}
+{"step": 11, "ts": "2026-10-28T12:48:38", "data": {"train/loss": 0.8759467398766244, "train/lr": 5e-05, "train/grad_norm": 22.5, "train/epoch": 0.0, "train/global_tokens": 2020.0}}
+{"step": 12, "ts": "2026-10-28T12:48:39", "data": {"train/loss": 0.5301094507797669, "train/lr": 0.0, "train/grad_norm": 9.0, "train/epoch": 0.0, "train/global_tokens": 2107.0}}
