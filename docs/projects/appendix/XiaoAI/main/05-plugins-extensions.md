@@ -5,12 +5,12 @@
 
 ## 1. 三个容易混淆的东西
 
-| 概念 | 位置 | 是什么 |
-|---|---|---|
-| **插件宿主（plugin host）** | `src/plugins/` | 上游核心：发现、manifest 校验、启停、加载（jiti，进程内）、注册表、钩子、安装/市场 |
-| **插件 SDK（给插件作者用）** | `src/plugin-sdk/` | 窄而稳的公开 API 面：`xiaoaiclaw/plugin-sdk/<subpath>` 子路径导出 + API baseline 锁面 |
-| **扩展包（bundled plugins）** | `extensions/*` | ~90 个 workspace 独立包：模型 provider、聊天渠道、能力组件 |
-| **[二开] 本地插件** | `plugins-local/` | `memory-cloud`（云端记忆）、`system-control`（IoT/系统工具门控），经 `plugins.load.paths` 加载 |
+| 概念                                | 位置                | 是什么                                                                                               |
+| ----------------------------------- | ------------------- | ---------------------------------------------------------------------------------------------------- |
+| **插件宿主（plugin host）**   | `src/plugins/`    | 上游核心：发现、manifest 校验、启停、加载（jiti，进程内）、注册表、钩子、安装/市场                   |
+| **插件 SDK（给插件作者用）**  | `src/plugin-sdk/` | 窄而稳的公开 API 面：`xiaoaiclaw/plugin-sdk/<subpath>` 子路径导出 + API baseline 锁面              |
+| **扩展包（bundled plugins）** | `extensions/*`    | ~90 个 workspace 独立包：模型 provider、聊天渠道、能力组件                                           |
+| **[二开] 本地插件**           | `plugins-local/`  | `memory-cloud`（云端记忆）、`system-control`（IoT/系统工具门控），经 `plugins.load.paths` 加载 |
 
 还有一个历史遗留：`src/extensionAPI.ts`（32 行）只是**废弃兼容 shim**（会打警告），真正的 API 是插件入口的 `register(api)` 回调。新代码不要用它。
 
@@ -49,17 +49,17 @@ api.registerWebSearchProvider / registerContextEngine / registerMemory*
 
 按执行时机（详见 `docs/concepts/agent-loop.md` "Hook points"）：
 
-| 钩子 | 时机 / 用途 |
-|---|---|
-| `before_model_resolve` | 会话建立前（无 messages），**确定性**改写 provider/model |
-| `before_prompt_build` | 加载会话后，注入 `prependContext` / `systemPrompt` / `prependSystemContext` / `appendSystemContext` |
-| `before_agent_reply` | LLM 调用前，插件可"截胡"返回合成回复或让本轮静默 |
-| `before_tool_call` / `after_tool_call` | 拦截/改写工具参数与结果 |
-| `tool_result_persist` | 写入 transcript 前**同步**变换工具结果 |
-| `before_compaction` / `after_compaction` | 观察/标注压缩 |
-| `before_install` | 安装 skill/plugin 前审查，可拦截 |
-| `message_received` / `message_sending` / `message_sent` | 出入站消息 |
-| `session_start` / `session_end`、`gateway_start` / `gateway_stop`、`agent_end` | 生命周期边界 |
+| 钩子                                                                                     | 时机 / 用途                                                                                                 |
+| ---------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `before_model_resolve`                                                                 | 会话建立前（无 messages），**确定性**改写 provider/model                                              |
+| `before_prompt_build`                                                                  | 加载会话后，注入 `prependContext` / `systemPrompt` / `prependSystemContext` / `appendSystemContext` |
+| `before_agent_reply`                                                                   | LLM 调用前，插件可"截胡"返回合成回复或让本轮静默                                                            |
+| `before_tool_call` / `after_tool_call`                                               | 拦截/改写工具参数与结果                                                                                     |
+| `tool_result_persist`                                                                  | 写入 transcript 前**同步**变换工具结果                                                                |
+| `before_compaction` / `after_compaction`                                             | 观察/标注压缩                                                                                               |
+| `before_install`                                                                       | 安装 skill/plugin 前审查，可拦截                                                                            |
+| `message_received` / `message_sending` / `message_sent`                            | 出入站消息                                                                                                  |
+| `session_start` / `session_end`、`gateway_start` / `gateway_stop`、`agent_end` | 生命周期边界                                                                                                |
 
 另有 **Gateway hooks**（内部钩子，脚本型）：`agent:bootstrap`（增删 bootstrap 上下文文件）、`/new`、`/reset` 等命令事件（`docs/automation/hooks.md`）。
 
@@ -86,16 +86,16 @@ api.registerWebSearchProvider / registerContextEngine / registerMemory*
 
 ## 6. 扩展点速查："我想……"
 
-| 我想… | 怎么做 | 参考 |
-|---|---|---|
-| 加一个 Agent 工具 | `src/agents/tools/` 写工厂函数（TypeBox schema + `stringEnum`），在 `xiaoaiclaw-tools.ts` 注册 + `tool-catalog.ts` 加条目；或插件 `api.registerTool` | `src/agents/tools/runtime-tools.ts`、`sessions-history-tool.ts` |
-| 写一个 Skill | 目录 + `SKILL.md`，放 `<workspace>/skills` 或随插件发 | `docs/tools/skills.md` |
-| 写一个插件 | `definePluginEntry` + manifest；只 import `xiaoaiclaw/plugin-sdk/*`；用钩子做生命周期拦截 | `docs/plugins/building-plugins.md` |
-| 接一个模型 provider | `api.registerProvider({catalog, prepareExtraParams, wrapStreamFn, formatApiKey, refreshOAuth, …})` | `extensions/anthropic/`、`docs/concepts/model-providers.md` |
-| 接一个聊天渠道 | `defineChannelPluginEntry` + `buildChannelConfigSchema` | `extensions/feishu/`、`docs/plugins/sdk-channel-plugins.md` |
-| 外接 MCP server | 配置 `mcp.servers` 或 `xiaoaiclaw mcp servers set` | 第 4 章 §7 |
-| 拦截/改写 prompt | `before_prompt_build` | `docs/plugins/sdk-overview.md` |
-| 做工具安全门控 | `before_tool_call`（`{block:true}`） | 参考 `plugins-local/system-control` |
+| 我想…              | 怎么做                                                                                                                                                         | 参考                                                                |
+| ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| 加一个 Agent 工具   | `src/agents/tools/` 写工厂函数（TypeBox schema + `stringEnum`），在 `xiaoaiclaw-tools.ts` 注册 + `tool-catalog.ts` 加条目；或插件 `api.registerTool` | `src/agents/tools/runtime-tools.ts`、`sessions-history-tool.ts` |
+| 写一个 Skill        | 目录 + `SKILL.md`，放 `<workspace>/skills` 或随插件发                                                                                                      | `docs/tools/skills.md`                                            |
+| 写一个插件          | `definePluginEntry` + manifest；只 import `xiaoaiclaw/plugin-sdk/*`；用钩子做生命周期拦截                                                                  | `docs/plugins/building-plugins.md`                                |
+| 接一个模型 provider | `api.registerProvider({catalog, prepareExtraParams, wrapStreamFn, formatApiKey, refreshOAuth, …})`                                                          | `extensions/anthropic/`、`docs/concepts/model-providers.md`     |
+| 接一个聊天渠道      | `defineChannelPluginEntry` + `buildChannelConfigSchema`                                                                                                    | `extensions/feishu/`、`docs/plugins/sdk-channel-plugins.md`     |
+| 外接 MCP server     | 配置 `mcp.servers` 或 `xiaoaiclaw mcp servers set`                                                                                                         | 第 4 章 §7                                                         |
+| 拦截/改写 prompt    | `before_prompt_build`                                                                                                                                        | `docs/plugins/sdk-overview.md`                                    |
+| 做工具安全门控      | `before_tool_call`（`{block:true}`）                                                                                                                       | 参考 `plugins-local/system-control`                               |
 
 ## 7. 测试与规范
 

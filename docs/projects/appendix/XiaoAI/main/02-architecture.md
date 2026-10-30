@@ -104,12 +104,12 @@ Gateway RPC(agent)  →  agentCommand  →  runEmbeddedPiAgent  →  subscribeEm
 
 ## 6. 部署形态
 
-| 形态 | 说明 | 入口 |
-|---|---|---|
-| 本机开发 | `pnpm gateway:watch` 热重载跑 Gateway | `package.json` scripts |
-| 单机安装 | `xiaoaiclaw onboard --install-daemon` 装 launchd/systemd 服务 | `README.md` |
-| Docker | 官方镜像 + compose | `Dockerfile*`、`docker-compose.yml` |
-| **[二开] K8s SaaS** | 多副本、多用户、云端记忆 | `xiaoaiclaw-ops/k8s/`、`xiaoaiclaw-ops/Dockerfile`（第 8 章） |
+| 形态                      | 说明                                                            | 入口                                                              |
+| ------------------------- | --------------------------------------------------------------- | ----------------------------------------------------------------- |
+| 本机开发                  | `pnpm gateway:watch` 热重载跑 Gateway                         | `package.json` scripts                                          |
+| 单机安装                  | `xiaoaiclaw onboard --install-daemon` 装 launchd/systemd 服务 | `README.md`                                                     |
+| Docker                    | 官方镜像 + compose                                              | `Dockerfile*`、`docker-compose.yml`                           |
+| **[二开] K8s SaaS** | 多副本、多用户、云端记忆                                        | `xiaoaiclaw-ops/k8s/`、`xiaoaiclaw-ops/Dockerfile`（第 8 章） |
 
 ## 7. 动手试试
 

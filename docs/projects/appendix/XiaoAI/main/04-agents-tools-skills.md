@@ -51,15 +51,15 @@ src/agents/agent-command.ts:900 agentCommand（本地可信入口；:920 agentCo
 
 ## 3. 核心执行：`src/agents/pi-embedded-runner/`
 
-| 文件 | 职责 |
-|---|---|
-| `run.ts:149 runEmbeddedPiAgent` | 总入口：per-session lane + 全局 lane 串行（`lanes.ts`）、解析工作区、**加载运行时插件**（`src/agents/runtime-plugins.ts` → `src/plugins/loader.ts`）、解析 provider/model、触发 `before_model_resolve`、超时/中止管控、返回 payload 与用量 |
-| `run/attempt.ts:1273 runEmbeddedAttempt` | **一次完整 attempt（约 4k 行，全仓核心）**：会话文件初始化 → skills prompt（`:1390`）→ 工具套件（`:1614`）→ `before_prompt_build` 钩子（`:1027`）→ `createAgentSession`（`:2255`，来自 pi-coding-agent）→ 工具拆分（`:2225` builtIn vs custom）→ system prompt 覆盖 → 跑 pi loop |
-| `pi-embedded-subscribe.ts:39 subscribeEmbeddedPiSession` | 把 pi 事件桥接为 XiaoAIClaw 事件流：`assistant`（增量）/ `tool`（start/update/end）/ `lifecycle`（start/end/error） |
-| `runs.ts` | 运行注册表、`abortEmbeddedPiRun`、`queueEmbeddedPiMessage` |
-| `compact.ts:1605 compactEmbeddedPiSession` | 压缩（配合 `src/agents/compaction.ts` 摘要生成、标识符保留、`repairToolUseResultPairing`）；溢出触发压缩、后台压缩、超时/重试聚合 |
-| `model.ts:672 resolveModel` | 模型解析（`ModelRegistry`） |
-| `auth-controller.ts`、`failover-observation.ts`、`llm-idle-timeout.ts` | 鉴权控制、故障转移观察、空闲超时 |
+| 文件                                                                         | 职责                                                                                                                                                                                                                                                                                                        |
+| ---------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `run.ts:149 runEmbeddedPiAgent`                                            | 总入口：per-session lane + 全局 lane 串行（`lanes.ts`）、解析工作区、**加载运行时插件**（`src/agents/runtime-plugins.ts` → `src/plugins/loader.ts`）、解析 provider/model、触发 `before_model_resolve`、超时/中止管控、返回 payload 与用量                                                   |
+| `run/attempt.ts:1273 runEmbeddedAttempt`                                   | **一次完整 attempt（约 4k 行，全仓核心）**：会话文件初始化 → skills prompt（`:1390`）→ 工具套件（`:1614`）→ `before_prompt_build` 钩子（`:1027`）→ `createAgentSession`（`:2255`，来自 pi-coding-agent）→ 工具拆分（`:2225` builtIn vs custom）→ system prompt 覆盖 → 跑 pi loop |
+| `pi-embedded-subscribe.ts:39 subscribeEmbeddedPiSession`                   | 把 pi 事件桥接为 XiaoAIClaw 事件流：`assistant`（增量）/ `tool`（start/update/end）/ `lifecycle`（start/end/error）                                                                                                                                                                                   |
+| `runs.ts`                                                                  | 运行注册表、`abortEmbeddedPiRun`、`queueEmbeddedPiMessage`                                                                                                                                                                                                                                              |
+| `compact.ts:1605 compactEmbeddedPiSession`                                 | 压缩（配合 `src/agents/compaction.ts` 摘要生成、标识符保留、`repairToolUseResultPairing`）；溢出触发压缩、后台压缩、超时/重试聚合                                                                                                                                                                       |
+| `model.ts:672 resolveModel`                                                | 模型解析（`ModelRegistry`）                                                                                                                                                                                                                                                                               |
+| `auth-controller.ts`、`failover-observation.ts`、`llm-idle-timeout.ts` | 鉴权控制、故障转移观察、空闲超时                                                                                                                                                                                                                                                                            |
 
 排障辅助：`attempt.tool-call-argument-repair.ts`（工具参数修复）、`attempt.stop-reason-recovery.ts`（异常 stop reason 恢复）、`tool-call-normalization.ts`。
 

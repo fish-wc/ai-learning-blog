@@ -16,14 +16,14 @@ Hop F  出站投递（route-reply → 渠道 outbound）        —— 回到用
 
 ## 1. 进程入口（Gateway 怎么起来的）
 
-| 文件 | 职责 |
-|---|---|
-| `xiaoaiclaw.mjs`（根目录） | 薄 shim：校验 Node ≥ 22.12、设 `UV_THREADPOOL_SIZE`、开 compile cache，动态 import `dist/entry.js` |
-| `src/entry.ts`（`runMainOrRootHelp:196`） | 真正的 bootstrap：进程标题、env/argv 规整（Windows argv 修正、`--profile`/`--container`），再懒加载 CLI |
-| `src/cli/run-main.ts:119 runCli` | Commander CLI：`route.ts` 快速路由热命令，否则 `program/build-program.ts` 建全量命令树 |
+| 文件                                                              | 职责                                                                                                                                                          |
+| ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `xiaoaiclaw.mjs`（根目录）                                      | 薄 shim：校验 Node ≥ 22.12、设 `UV_THREADPOOL_SIZE`、开 compile cache，动态 import `dist/entry.js`                                                       |
+| `src/entry.ts`（`runMainOrRootHelp:196`）                     | 真正的 bootstrap：进程标题、env/argv 规整（Windows argv 修正、`--profile`/`--container`），再懒加载 CLI                                                   |
+| `src/cli/run-main.ts:119 runCli`                                | Commander CLI：`route.ts` 快速路由热命令，否则 `program/build-program.ts` 建全量命令树                                                                    |
 | `src/cli/gateway-cli/run.ts`、`run-loop.ts:29 runGatewayLoop` | `xiaoaiclaw gateway` 子命令：解析 `--port/--bind/--token/--auth`，**守护循环**（`acquireGatewayLock`、信号处理、进程内重启、等待嵌入式 run 收尾） |
-| `src/gateway/server.impl.ts:426 startGatewayServer` | Gateway 单体启动：配置快照、死状态断言、插件自动启用、secrets 快照 → HTTP/WS 服务、channel manager、node registry、exec 审批、cron、sidecars |
-| `src/daemon/service.ts:113 startGatewayService` | daemon **不在进程内跑 gateway**，而是装成 OS 服务（systemd/launchd/schtasks），最终执行 `xiaoaiclaw gateway run` |
+| `src/gateway/server.impl.ts:426 startGatewayServer`             | Gateway 单体启动：配置快照、死状态断言、插件自动启用、secrets 快照 → HTTP/WS 服务、channel manager、node registry、exec 审批、cron、sidecars                 |
+| `src/daemon/service.ts:113 startGatewayService`                 | daemon **不在进程内跑 gateway**，而是装成 OS 服务（systemd/launchd/schtasks），最终执行 `xiaoaiclaw gateway run`                                      |
 
 ## 2. Hop A：渠道收到事件
 
@@ -122,19 +122,19 @@ get-reply.ts:136 getReplyFromConfig
 
 ## 10. 关键类型速查表
 
-| 概念 | 类型 | 位置 |
-|---|---|---|
-| 消息信封 | `MsgContext` / `FinalizedMsgContext` | `src/auto-reply/templating.ts:23,254` |
-| run 选项/回调 | `GetReplyOptions` | `src/auto-reply/types.ts:28` |
-| 回复输出 | `ReplyPayload` | `src/auto-reply/types.ts:95` |
-| 回复派发器 | `ReplyDispatcher`、`ReplyDispatchKind` | `src/auto-reply/reply/reply-dispatcher.ts` |
-| 会话模型 | `SessionEntry`、`ClawSessionStore` | `src/config/sessions/types.ts:75`、`backend/types.ts:116` |
-| 路由 | `ResolvedAgentRoute` | `src/routing/resolve-route.ts:39` |
-| 渠道插件 | `ChannelPlugin` | `src/channels/plugins/types.plugin.ts:81` |
-| 线协议帧 | `ConnectParams`/`RequestFrame`/`EventFrame` | `src/gateway/protocol/schema/` |
-| RPC 契约 | `GatewayRequestHandler`、`GatewayRequestContext` | `src/gateway/server-methods/types.ts:148,36` |
-| 中止注册 | `ChatAbortControllerEntry` | `src/gateway/chat-abort.ts:6` |
-| 循环熔断配置 | `ToolLoopDetectionConfig` | `src/config/types.tools.ts:154` |
+| 概念          | 类型                                                 | 位置                                                          |
+| ------------- | ---------------------------------------------------- | ------------------------------------------------------------- |
+| 消息信封      | `MsgContext` / `FinalizedMsgContext`             | `src/auto-reply/templating.ts:23,254`                       |
+| run 选项/回调 | `GetReplyOptions`                                  | `src/auto-reply/types.ts:28`                                |
+| 回复输出      | `ReplyPayload`                                     | `src/auto-reply/types.ts:95`                                |
+| 回复派发器    | `ReplyDispatcher`、`ReplyDispatchKind`           | `src/auto-reply/reply/reply-dispatcher.ts`                  |
+| 会话模型      | `SessionEntry`、`ClawSessionStore`               | `src/config/sessions/types.ts:75`、`backend/types.ts:116` |
+| 路由          | `ResolvedAgentRoute`                               | `src/routing/resolve-route.ts:39`                           |
+| 渠道插件      | `ChannelPlugin`                                    | `src/channels/plugins/types.plugin.ts:81`                   |
+| 线协议帧      | `ConnectParams`/`RequestFrame`/`EventFrame`    | `src/gateway/protocol/schema/`                              |
+| RPC 契约      | `GatewayRequestHandler`、`GatewayRequestContext` | `src/gateway/server-methods/types.ts:148,36`                |
+| 中止注册      | `ChatAbortControllerEntry`                         | `src/gateway/chat-abort.ts:6`                               |
+| 循环熔断配置  | `ToolLoopDetectionConfig`                          | `src/config/types.tools.ts:154`                             |
 
 ## 11. 三条新手代码走读路线（强烈建议照着走一遍）
 
