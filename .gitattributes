@@ -1,1 +1,1 @@
-docs/projects/appendix/XiaoAI/*
+docs/projects/appendix/XiaoAI/**/*.md filter=git-crypt diff=git-crypt
