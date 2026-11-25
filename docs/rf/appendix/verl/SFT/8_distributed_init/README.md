@@ -22,6 +22,7 @@
 ## 和上一模块(7_manual_loss)的区别
 
 数据流（packing、动态 batch、4D 掩码、手算 sft_loss、梯度检查点、追踪）**全不变**；只换了**怎么启动 / 谁来跑**这一层：
+
 - 模块6：`python train.py` 单进程，一张卡，一份完整数据，梯度和日志都自然只有一份。
 - 模块7：`torchrun --nproc_per_node=N train.py` 起 N 个进程，建 NCCL 进程组，每个 rank 拿 `(local_rank, rank, world_size)`，各跑一张卡、各见不重叠的数据分片，只有 rank0 写日志/存盘。
 
@@ -48,6 +49,7 @@ CUDA_VISIBLE_DEVICES=0 /home/zzy/.conda/envs/easysteer/bin/python train.py \
     trainer.log_every=1 trainer.max_token_len_per_gpu=2048 \
     trainer.experiment_name=qwen0.5b-dist-init-single
 ```
+
 - `[dist] world_size=1, rank=0, local_rank=0, device=cuda:0`（回退路径：没建进程组）。
 - loss 0.595→0.354（6 步），grad_norm 20.25→5.16，与模块6 一致（单进程路径代码不变）。
 
@@ -62,6 +64,7 @@ CUDA_DEVICE_ORDER=PCI_BUS_ID CUDA_VISIBLE_DEVICES=0,2 \
     trainer.log_every=1 trainer.max_token_len_per_gpu=2048 \
     trainer.experiment_name=qwen0.5b-dist-init-demo
 ```
+
 - `[dist] world_size=2, rank=0, local_rank=0, device=cuda:0, backend=nccl`（进程组建好）。
 - **rank0 的 loss 与单进程逐位一致**：step1 `0.5949621200561523`、step2 `0.6323273181915283`（与单进程完全相同）。
   - 这同时证明两件事：(a) 数据分片正确——rank0 取 `global_idx[0:per]`，是单进程轨迹的**前缀**，所以前几步见同样的样本、同样的顺序；(b) **梯度没有同步**——若 DDP 在平均 rank0+rank1 的梯度，rank0 的 loss 会偏离单进程。逐位一致正是"无 DDP、各 rank 各自为政"的签名。
@@ -89,6 +92,6 @@ PCI_BUS_ID + CUDA_VISIBLE_DEVICES=0,2 -> cuda:0=3090(24GB), cuda:1=3090(24GB)  �
 
 本环境没装 flash_attn，packing 路径退用 4D 块对角掩码（物化 `(1,1,T,T)`）。`T=8192` 时：① dense float bias 把 SDPA 顶下 memory-efficient kernel，注意力权重物化成 `(1,14,8192,8192)`；② LM head logits `1×8192×151936` + float32 `log_softmax` 各 ~5GB。单卡 24GB 装不下。
 
-**修法**：烟测用 `trainer.max_token_len_per_gpu=2048`（与模块6 验证命令一致；模块6 的默认 8192 同样从未跑通）。生产环境装 flash_attn 后 `8192` 才可行——这正是 verl 默认开 flash_attn_varlen 的原因。
+**修法**：烟测用 `trainer.max_token_len_per_gpu=2048`（与模块6 验证命令一致；模块6 的默认 8192 同样从未跑通）。生产环境装git flash_attn 后 `8192` 才可行——这正是 verl 默认开 flash_attn_varlen 的原因。
 
 > **bf16 求和坑**（从模块6 继承，本模块仍生效）：`loss_mask.sum()` 必须在 float32 里算，bf16 尾数 7 位会把 >256 的整数舍入（357→356）→ loss 偏 ~0.28%。`loss.py` 的 `sft_loss` 已用 `shift_mask = loss_mask[:, 1:].float()` 修好。模块8 做 `all_reduce(loss)` 时同理：必须在 float32 上 reduce，不能在 bf16 上。
